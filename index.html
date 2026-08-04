@@ -21,7 +21,8 @@
      de la herramienta de diseño, que no funcionaría fuera de ella) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
 
 <style>
   /* ======================================================
@@ -120,6 +121,12 @@
     width:30px; height:30px; object-fit:contain; vertical-align:-6px;
   }
   .theme-toggle:active{ transform:scale(.85); }
+  #globalSearchBtn{
+    background:rgba(255,255,255,.12); border:none; color:var(--white);
+    width:32px; height:32px; border-radius:50%; font-size:14px;
+    vertical-align:-9px; margin-left:6px;
+  }
+  #globalSearchBtn:active{ background:rgba(255,255,255,.25); }
   header{
     background:linear-gradient(150deg,#1B1D3A 0%,#2C2960 55%,#453A9E 100%);
     color:var(--white);
@@ -198,6 +205,20 @@
   }
   .auth-box h1{ font-size:23px; margin:0 0 4px; font-weight:800; }
   .auth-sub{ font-size:13px; color:var(--slate-400,#6b7280); margin:0 0 20px; line-height:1.4; }
+
+  /* Clases de utilidad: sustituyen estilos "style=" repetidos sueltos por
+     el HTML (solo en sitios donde JS nunca toca .style directamente, para
+     no romper ningún toggle de mostrar/ocultar). */
+  .u-center{ text-align:center; }
+  .u-mt-8{ margin-top:8px; }
+  .u-mt-12{ margin-top:12px; }
+  .u-full{ width:100%; }
+  .u-status-msg{ text-align:center; margin:8px 0 0; }
+  .u-text-sm{ font-size:13.5px; }
+  .time-input-mini{
+    flex:0 0 auto; border:none; background:var(--slate-100); border-radius:12px;
+    padding:10px 12px; font-size:14.5px;
+  }
 
   .hogar-help-box{
     text-align:left; background:var(--blue-soft); border-radius:14px;
@@ -1000,12 +1021,12 @@
     border:none; background:transparent; font-size:15px; padding:0 2px;
   }
   #qrInviteBox img{ border-radius:14px; margin:4px 0 12px; max-width:200px; width:100%; }
-  #qrInviteBox .qr-link-box{
+  #qrInviteBox .qr-link-box, #shortcutBox .qr-link-box{
     background:var(--slate-100); border-radius:11px; padding:10px 12px;
     font-size:12px; color:var(--slate-700); word-break:break-all; margin-bottom:10px;
   }
-  #qrInviteBox .qr-actions{ display:flex; gap:8px; }
-  #qrInviteBox .qr-actions button{
+  #qrInviteBox .qr-actions, #shortcutBox .qr-actions{ display:flex; gap:8px; }
+  #qrInviteBox .qr-actions button, #shortcutBox .qr-actions button{
     flex:1; border:1.5px dashed var(--slate-400); background:transparent;
     color:var(--slate-700); border-radius:12px; padding:10px 0; font-size:12.5px; font-weight:600;
   }
@@ -1143,7 +1164,7 @@
 <div id="app" style="display:none;">
 
   <header>
-    <h1><img id="themeToggleBtn" class="theme-toggle" role="button" aria-label="Cambiar a modo noche" title="Modo noche" alt="Cambiar tema"> Nuestra Casa</h1>
+    <h1><img id="themeToggleBtn" class="theme-toggle" role="button" aria-label="Cambiar a modo noche" title="Modo noche" alt="Cambiar tema"> Nuestra Casa <button id="globalSearchBtn" type="button" aria-label="Buscar" title="Buscar">🔍</button></h1>
     <p>Lista y calendario compartidos en tiempo real</p>
     <!-- Banner que avisa de las citas de HOY -->
     <div id="alertBanner"></div>
@@ -1181,7 +1202,7 @@
       <div class="quick-row" id="quickRow"></div>
 
       <div class="add-row">
-        <input type="text" id="newItemInput" placeholder="Ej: falta pan..." maxlength="120">
+        <input type="text" id="newItemInput" placeholder="Ej: falta pan..." maxlength="120" autocapitalize="sentences">
         <button class="btn-add" id="addItemBtn">＋</button>
       </div>
 
@@ -1250,6 +1271,20 @@
       </div>
       <ul class="plant-list" id="plantList"></ul>
       <p class="empty-hint" id="emptyPlantHint">Añade vuestra primera planta 🌿</p>
+
+      <div class="settings-divider"></div>
+
+      <p class="settings-sub"><strong>🔧 Mantenimiento del hogar</strong> (filtro del aire, extintor, caldera...):</p>
+      <div class="plant-add">
+        <input type="text" id="newMaintenanceInput" placeholder="Ej: Cambiar el filtro del aire" maxlength="60">
+        <div class="plant-freq-input">
+          <input type="number" id="newMaintenanceFreqInput" min="1" max="365" value="30">
+          <span>días</span>
+        </div>
+        <button class="btn-add" id="addMaintenanceBtn">＋</button>
+      </div>
+      <ul class="plant-list" id="maintenanceList"></ul>
+      <p class="empty-hint" id="emptyMaintenanceHint">Sin tareas de mantenimiento todavía.</p>
     </section>
 
     <!-- ================= VISTA 4: SALUD EN CASA ================= -->
@@ -1445,6 +1480,20 @@
         <button class="mode-btn mode-motivador" data-mode="Motivador">💪 Motivador exagerado</button>
       </div>
       <p class="last-message-sent" id="lastMessageSent"></p>
+
+      <div class="settings-divider"></div>
+
+      <p class="settings-sub"><strong>Último mensaje</strong> (aquí puedes reaccionar cuando quieras, no solo en el aviso que sale al llegar):</p>
+      <div class="settings-card" id="lastMessageCard" style="display:none;">
+        <div class="u-text-sm" id="lastMessageFrom" style="font-weight:800; text-transform:uppercase; color:var(--pink); margin-bottom:4px;"></div>
+        <div id="lastMessageText" style="font-size:15px; margin-bottom:10px;"></div>
+        <div class="toast-reactions" id="persistentReactions">
+          <button class="toast-reaction-btn" data-emoji="❤️" type="button">❤️</button>
+          <button class="toast-reaction-btn" data-emoji="😂" type="button">😂</button>
+          <button class="toast-reaction-btn" data-emoji="👍" type="button">👍</button>
+        </div>
+        <div class="u-text-sm" id="lastMessageReactionShown" style="margin-top:8px; color:var(--slate-400);"></div>
+      </div>
     </section>
 
     <!-- ================= VISTA 7: AJUSTES ================= -->
@@ -1520,7 +1569,7 @@
         <p class="settings-sub">Avisos como los de cualquier app (WhatsApp, etc.), aunque tengas la pantalla apagada. En iPhone solo funciona si la app está "Añadida a pantalla de inicio" (ver la tarjeta de "Compartir la app" más abajo).</p>
 
         <button class="auth-btn" id="enableNotifsBtn" type="button" style="margin-top:0;">Activar notificaciones en este móvil</button>
-        <p class="auth-msg" id="notifsStatusMsg" style="text-align:center; margin:8px 0 0;"></p>
+        <p class="auth-msg" id="notifsStatusMsg" class="u-status-msg"></p>
 
         <div id="notifPrefsBlock" style="display:none; margin-top:16px;">
           <div class="settings-divider"></div>
@@ -1542,12 +1591,12 @@
               <span class="switch-slider"></span>
             </label>
           </div>
-          <div class="settings-row" style="margin-top:8px;">
+          <div class="settings-row" class="u-mt-8">
             <span class="settings-unit">A las</span>
-            <input type="time" id="agendaReminderTimeInput" style="flex:0 0 auto; border:none; background:var(--slate-100); border-radius:12px; padding:10px 12px; font-size:14.5px;">
+            <input type="time" id="agendaReminderTimeInput" class="time-input-mini">
           </div>
 
-          <div class="settings-row settings-toggle-row" style="margin-top:12px;">
+          <div class="settings-row settings-toggle-row" class="u-mt-12">
             <span>Avisarme 1 hora antes de cada cita</span>
             <label class="switch">
               <input type="checkbox" id="reminder1hToggle">
@@ -1564,9 +1613,9 @@
               <span class="switch-slider"></span>
             </label>
           </div>
-          <div class="settings-row" style="margin-top:8px;">
+          <div class="settings-row" class="u-mt-8">
             <span class="settings-unit">A las</span>
-            <input type="time" id="plantReminderTimeInput" style="flex:0 0 auto; border:none; background:var(--slate-100); border-radius:12px; padding:10px 12px; font-size:14.5px;">
+            <input type="time" id="plantReminderTimeInput" class="time-input-mini">
           </div>
 
           <div class="settings-divider"></div>
@@ -1578,13 +1627,13 @@
               <span class="switch-slider"></span>
             </label>
           </div>
-          <div class="settings-row" style="margin-top:8px;">
+          <div class="settings-row" class="u-mt-8">
             <span class="settings-unit">Salgo del trabajo a las</span>
-            <input type="time" id="leaveWorkTimeInput" style="flex:0 0 auto; border:none; background:var(--slate-100); border-radius:12px; padding:10px 12px; font-size:14.5px;">
+            <input type="time" id="leaveWorkTimeInput" class="time-input-mini">
           </div>
 
           <button class="btn-save-setting" id="saveNotifPrefsBtn" style="width:100%; margin-top:16px;">Guardar preferencias</button>
-          <p class="auth-msg" id="notifPrefsSavedMsg" style="text-align:center; margin:8px 0 0;"></p>
+          <p class="auth-msg" id="notifPrefsSavedMsg" class="u-status-msg"></p>
         </div>
       </details>
 
@@ -1610,6 +1659,22 @@
       </details>
 
       <details class="settings-card">
+        <summary class="settings-title">🎙️ Añadir por voz (Siri / Google)</summary>
+        <p class="settings-sub">Genera tu enlace personal y secreto (no lo compartas) para poder decir "Oye Siri, añade a la lista" o "Ok Google, añade a la lista" y que se guarde en la app directamente, sin abrirla.</p>
+        <button class="auth-btn" id="generateShortcutBtn" type="button" style="margin-top:0;">Generar mi enlace personal</button>
+        <div id="shortcutBox" style="display:none; margin-top:14px;">
+          <div class="qr-link-box" id="shortcutUrlBox" style="word-break:break-all;"></div>
+          <div class="qr-actions">
+            <button id="shortcutCopyBtn" type="button">📋 Copiar enlace</button>
+            <button id="shortcutRegenerateBtn" type="button">🔄 Generar otro (invalida este)</button>
+          </div>
+          <p class="settings-sub u-mt-12"><strong>📱 iPhone (Atajos):</strong> app Atajos → ＋ → Añadir acción → busca "Obtener contenido de URL" → pega tu enlace y pon el método en POST → guarda el atajo con el nombre "Añadir a la lista" → después, en el propio atajo, añade antes una acción "Pedir texto" para que te pregunte qué producto, y súmalo al final de la URL como <code>?text=</code> seguido del texto pedido. Actívalo con Siri diciendo el nombre del atajo.</p>
+          <p class="settings-sub"><strong>🤖 Android (Google Assistant, vía IFTTT):</strong> crea una cuenta en ifttt.com → New Applet → "This" = Google Assistant (frase simple con una parte de texto) → "That" = Webhooks → pega tu enlace, método POST, tipo de contenido <code>application/json</code>, y en el cuerpo pon <code>{"token":"TU_TOKEN","text":"{{TextField}}"}</code>.</p>
+        </div>
+        <p class="auth-msg" id="shortcutStatus" style="text-align:center; margin-top:8px;"></p>
+      </details>
+
+      <details class="settings-card">
         <summary class="settings-title">🏠 Código de vuestro hogar</summary>
         <p class="settings-sub">Compartid este código con el otro móvil para que los dos veáis los mismos datos. Cada código es un hogar totalmente separado: útil si varias parejas o familias usáis esta misma app.</p>
         <div class="hogar-code-box" id="hogarCodeBox"></div>
@@ -1630,7 +1695,7 @@
       <details class="settings-card" id="qrInviteCard" style="display:none;">
         <summary class="settings-title">📲 Invitar con un enlace o QR</summary>
         <p class="settings-sub">La forma más fácil: quien lo abra se registra con SU propio email y entra solo, sin que tengas que saber su email de antemano.</p>
-        <div id="qrInviteBox" style="text-align:center;">
+        <div id="qrInviteBox" class="u-center">
           <button class="auth-btn" id="qrGenerateBtn" type="button">Generar enlace de invitación</button>
         </div>
       </details>
@@ -1642,13 +1707,13 @@
           <textarea id="newSuggestionInput" placeholder="Ej: sería genial poder..." maxlength="500" rows="2" style="flex:1; border:none; background:var(--slate-100); border-radius:12px; padding:12px 14px; font-size:14.5px; font-family:inherit; resize:vertical;"></textarea>
         </div>
         <button class="btn-save-setting" id="addSuggestionBtn" style="width:100%; margin-top:8px;">Enviar sugerencia</button>
-        <p class="auth-msg" id="suggestionMsg" style="text-align:center; margin:8px 0 0;"></p>
+        <p class="auth-msg" id="suggestionMsg" class="u-status-msg"></p>
       </details>
 
       <details class="settings-card">
         <summary class="settings-title">📲 Compartir la app (sin código de hogar)</summary>
         <p class="settings-sub">Para que alguien se descargue "Nuestra Casa" en su móvil sin unirse todavía a ningún hogar concreto — luego, ya dentro, puede crear el suyo propio o usar un enlace de invitación aparte.</p>
-        <div id="appShareBox" style="text-align:center;"></div>
+        <div id="appShareBox" class="u-center"></div>
         <p class="settings-sub" style="margin-top:14px;"><strong>Cómo instalarla, paso a paso:</strong></p>
         <p class="settings-sub" style="margin:0 0 6px;">📱 <strong>iPhone (Safari):</strong> abre el enlace → toca el botón Compartir (el cuadrado con la flecha hacia arriba, abajo en el centro) → "Añadir a pantalla de inicio".</p>
         <p class="settings-sub" style="margin:0;">🤖 <strong>Android (Chrome):</strong> abre el enlace → toca los tres puntos (⋮) arriba a la derecha → "Instalar aplicación" o "Añadir a pantalla de inicio".</p>
@@ -1666,18 +1731,18 @@
           <li>Tu pertenencia a este hogar y a cualquier otro al que estuvieras unido/a.</li>
         </ul>
 
-        <p class="settings-sub" style="margin-top:12px;"><strong>❌ Esto NO se borra</strong> (se queda tal cual para el resto del hogar) <strong>— excepto si eres la última persona</strong>, ver abajo:</p>
+        <p class="settings-sub" class="u-mt-12"><strong>❌ Esto NO se borra</strong> (se queda tal cual para el resto del hogar) <strong>— excepto si eres la última persona</strong>, ver abajo:</p>
         <ul class="delete-account-list">
           <li>La lista de la compra, el calendario, las plantas, la salud, la hucha, los gastos, las tareas y los mensajes de vuestro hogar.</li>
           <li>Lo que ya hubieras añadido antes (ej. productos marcados "Añadido por tu nombre", citas creadas por ti, gastos que pagaste) — se queda con tu nombre puesto, como un registro histórico, aunque tu cuenta ya no exista.</li>
           <li>El propio hogar: sigue funcionando con normalidad para quien se quede en él.</li>
         </ul>
 
-        <p class="settings-sub" style="margin-top:12px;">⚠️ <strong>Si eres la última persona del hogar</strong> (no queda nadie más), al eliminar tu cuenta se borra <strong>también todo lo del hogar</strong> (lista, calendario, gastos, absolutamente todo) — porque ya no quedaría nadie que pudiera verlo ni usarlo.</p>
+        <p class="settings-sub" class="u-mt-12">⚠️ <strong>Si eres la última persona del hogar</strong> (no queda nadie más), al eliminar tu cuenta se borra <strong>también todo lo del hogar</strong> (lista, calendario, gastos, absolutamente todo) — porque ya no quedaría nadie que pudiera verlo ni usarlo.</p>
 
-        <p class="settings-sub" style="margin-top:12px;">👉 <strong>¿Quieres borrarlo todo a propósito, aunque seáis varios en el hogar?</strong> Solo hace falta que os deis todos de baja: id a Ajustes → "Quién tiene acceso" y quitad primero a los demás (o que cada uno elimine su propia cuenta), y que la última persona elimine la suya — en ese momento se borra todo automáticamente, tal como se explica arriba.</p>
+        <p class="settings-sub" class="u-mt-12">👉 <strong>¿Quieres borrarlo todo a propósito, aunque seáis varios en el hogar?</strong> Solo hace falta que os deis todos de baja: id a Ajustes → "Quién tiene acceso" y quitad primero a los demás (o que cada uno elimine su propia cuenta), y que la última persona elimine la suya — en ese momento se borra todo automáticamente, tal como se explica arriba.</p>
 
-        <p class="settings-sub" style="margin-top:12px;">Si más adelante quieres volver a usar la app, tendrás que registrarte con un email (el mismo u otro) y que os inviten de nuevo. <strong>Esta acción es irreversible: no hay forma de deshacerla después.</strong></p>
+        <p class="settings-sub" class="u-mt-12">Si más adelante quieres volver a usar la app, tendrás que registrarte con un email (el mismo u otro) y que os inviten de nuevo. <strong>Esta acción es irreversible: no hay forma de deshacerla después.</strong></p>
 
         <div class="settings-row settings-toggle-row">
           <span style="font-size:13px;">Entiendo que esto no se puede deshacer</span>
@@ -1687,7 +1752,7 @@
           </label>
         </div>
         <button class="btn-clear-fridge" id="deleteAccountBtn" disabled style="width:100%; margin-top:12px; color:var(--danger); border-color:var(--danger);">🗑️ Eliminar mi cuenta y mis datos</button>
-        <p class="auth-msg" id="deleteAccountStatus" style="text-align:center; margin:8px 0 0;"></p>
+        <p class="auth-msg" id="deleteAccountStatus" class="u-status-msg"></p>
       </details>
 
     </section>
@@ -1720,6 +1785,55 @@
     <button class="toast-reaction-btn" data-emoji="❤️" type="button">❤️</button>
     <button class="toast-reaction-btn" data-emoji="😂" type="button">😂</button>
     <button class="toast-reaction-btn" data-emoji="👍" type="button">👍</button>
+  </div>
+</div>
+
+<!-- ================= MODAL GENÉRICO: aviso (sustituye a alert()) ================= -->
+<div class="overlay" id="genericAlertOverlay">
+  <div class="sheet">
+    <p id="genericAlertText" style="white-space:pre-line; font-size:14.5px;"></p>
+    <div class="sheet-actions">
+      <button class="btn-save" id="genericAlertOkBtn" class="u-full">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL GENÉRICO: pedir un texto (sustituye a prompt()) ================= -->
+<div class="overlay" id="genericPromptOverlay">
+  <div class="sheet">
+    <p id="genericPromptText" style="font-size:14.5px;"></p>
+    <input type="text" id="genericPromptInput">
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="genericPromptCancelBtn">Cancelar</button>
+      <button class="btn-save" id="genericPromptSaveBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: buscador general ================= -->
+<div class="overlay" id="globalSearchOverlay">
+  <div class="sheet" style="max-height:80vh; display:flex; flex-direction:column;">
+    <h3>🔍 Buscar en todo</h3>
+    <input type="text" id="globalSearchInput" placeholder="Ej: dentista, leche, Juan..." style="margin-bottom:12px;">
+    <div id="globalSearchResults" style="overflow-y:auto; flex:1;"></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="globalSearchCloseBtn" class="u-full">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: editar producto de la lista ================= -->
+<div class="overlay" id="editItemOverlay">
+  <div class="sheet">
+    <h3>✏️ Editar producto</h3>
+    <label>Nombre</label>
+    <input type="text" id="editItemTextInput" maxlength="120" autocapitalize="sentences">
+    <label>Cantidad</label>
+    <input type="number" id="editItemQtyInput" min="1" step="1">
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="editItemCancelBtn">Cancelar</button>
+      <button class="btn-save" id="editItemSaveBtn">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -1759,7 +1873,7 @@
     <h3>🎉 Novedades en Nuestra Casa</h3>
     <ul class="whats-new-list" id="whatsNewList"></ul>
     <div class="sheet-actions">
-      <button class="btn-save" id="whatsNewCloseBtn" style="width:100%;">¡Entendido!</button>
+      <button class="btn-save" id="whatsNewCloseBtn" class="u-full">¡Entendido!</button>
     </div>
   </div>
 </div>
@@ -1769,7 +1883,7 @@
 <div class="overlay" id="tourOverlay">
   <div class="sheet">
     <div id="tourStepIcon" style="font-size:44px; text-align:center; margin-bottom:6px;"></div>
-    <h3 id="tourStepTitle" style="text-align:center;"></h3>
+    <h3 id="tourStepTitle" class="u-center"></h3>
     <p class="settings-sub" id="tourStepText" style="text-align:center; font-size:14.5px;"></p>
     <div id="tourDots" style="display:flex; justify-content:center; gap:6px; margin:16px 0;"></div>
     <div class="sheet-actions">
@@ -1795,10 +1909,10 @@
 <div class="overlay" id="deleteAccountOverlay">
   <div class="sheet">
     <h3>🗑️ ¿Eliminar tu cuenta de verdad?</h3>
-    <p class="settings-sub" style="font-size:13.5px;">Esta es tu última oportunidad para echarte atrás.</p>
-    <p class="settings-sub" style="font-size:13.5px;"><strong>Se borra:</strong> tu email/contraseña, tus notificaciones y preferencias, y tu pertenencia a este hogar (y a cualquier otro al que estés unido/a).</p>
-    <p class="settings-sub" style="font-size:13.5px;"><strong>No se borra:</strong> la lista, el calendario, ni nada de lo demás del hogar — sigue todo ahí para el resto, incluido lo que tú mismo/a añadiste antes.</p>
-    <p class="settings-sub" style="font-size:13.5px;">⚠️ <strong>Excepción:</strong> si eres la última persona de este hogar, se borra también TODO lo del hogar al eliminar tu cuenta.</p>
+    <p class="settings-sub" class="u-text-sm">Esta es tu última oportunidad para echarte atrás.</p>
+    <p class="settings-sub" class="u-text-sm"><strong>Se borra:</strong> tu email/contraseña, tus notificaciones y preferencias, y tu pertenencia a este hogar (y a cualquier otro al que estés unido/a).</p>
+    <p class="settings-sub" class="u-text-sm"><strong>No se borra:</strong> la lista, el calendario, ni nada de lo demás del hogar — sigue todo ahí para el resto, incluido lo que tú mismo/a añadiste antes.</p>
+    <p class="settings-sub" class="u-text-sm">⚠️ <strong>Excepción:</strong> si eres la última persona de este hogar, se borra también TODO lo del hogar al eliminar tu cuenta.</p>
     <div class="sheet-actions">
       <button class="btn-cancel" id="deleteAccountCancelBtn">Cancelar</button>
       <button class="btn-save" id="deleteAccountConfirmBtn" style="background:var(--danger);">Sí, eliminar mi cuenta</button>
@@ -1811,12 +1925,12 @@
      sale una única vez a todo el mundo. -->
 <div class="overlay" id="joinReminderOverlay">
   <div class="sheet">
-    <h3 style="text-align:center;">💡 ¿Vuestro hogar está bien unido?</h3>
+    <h3 class="u-center">💡 ¿Vuestro hogar está bien unido?</h3>
     <p class="settings-sub" style="font-size:13.5px; line-height:1.5;">Hemos visto que a veces una pareja se registra cada uno por su lado sin llegar a unirse al mismo hogar — y cada uno ve una lista distinta sin saberlo. Un recordatorio rápido de cómo comprobarlo:</p>
     <p class="settings-sub" style="font-size:13.5px; line-height:1.5;">✅ <strong>Estáis bien unidos</strong> si en Ajustes → "Código de vuestro hogar" veis <strong>el mismo código</strong> en los dos móviles.</p>
     <p class="settings-sub" style="font-size:13.5px; line-height:1.5;">❌ <strong>Si los códigos son distintos</strong> (o el otro móvil todavía no ha entrado a ningún hogar), la forma más fácil de arreglarlo: id a Ajustes → "Invitar con un enlace o QR", generad el enlace, y que la otra persona lo abra desde su móvil para entrar directo.</p>
     <div class="sheet-actions">
-      <button class="btn-save" id="joinReminderCloseBtn" style="width:100%;">Entendido</button>
+      <button class="btn-save" id="joinReminderCloseBtn" class="u-full">Entendido</button>
     </div>
   </div>
 </div>
@@ -1826,9 +1940,10 @@
      SUPABASE — SDK oficial de JavaScript (build UMD, expone window.supabase)
      ====================================================================== -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<!-- Lee texto de fotos (para el escáner de tickets en Gastos), todo en el
-     propio móvil, sin mandar la imagen a ningún sitio. -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- Tesseract.js (lectura de tickets) ya NO se carga aquí de fondo — se
+     carga solo, bajo demanda, la primera vez que se pulsa un botón de
+     escanear (ver _cargarTesseractSiHaceFalta() en el script principal),
+     para no ralentizar el arranque de la app a quien no escanea nunca. -->
 
 <script>
 /* =========================================================================
@@ -1856,8 +1971,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const TEMA_KEY = 'nuestraCasaModoNoche';
 // Iconos propios (casita+sol para modo claro, casita+luna para modo noche),
 // incrustados como base64 para no depender de archivos de imagen sueltos.
-const ICONO_TEMA_CLARO = 'data:image/png;base64,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';
-const ICONO_TEMA_NOCHE = 'data:image/png;base64,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';
+const ICONO_TEMA_CLARO = 'data:image/png;base64,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';
+const ICONO_TEMA_NOCHE = 'data:image/png;base64,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';
 
 function aplicarTema(activo){
   document.documentElement.classList.toggle('dark-mode', activo);
@@ -2038,6 +2153,10 @@ hogarJoinBtn.addEventListener('click', async () => {
   hogarJoinBtn.disabled = false;
 
   if(error){ hogarMsg.textContent = 'Error de conexión, inténtalo de nuevo.'; console.error(error); return; }
+  if(data === 'demasiados_intentos'){
+    hogarMsg.textContent = 'Has probado demasiadas veces seguidas. Espera unos minutos y vuelve a intentarlo.';
+    return;
+  }
   if(data === 'no_autorizado'){
     hogarMsg.textContent = 'Tu email no está autorizado todavía para este hogar. Pídele a tu pareja que te añada en Ajustes → Quién tiene acceso, o mejor: que te mande el enlace de invitación (mira la ayuda de arriba ↑).';
     return;
@@ -2064,14 +2183,16 @@ hogarCreateBtn.addEventListener('click', async () => {
   hogarCreateBtn.disabled = false;
 
   if(error || data !== 'ok'){
-    hogarMsg.textContent = 'No se pudo crear el hogar, inténtalo de nuevo.';
+    hogarMsg.textContent = data === 'demasiados_intentos'
+      ? 'Has creado demasiados hogares seguidos. Espera unos minutos y vuelve a intentarlo.'
+      : 'No se pudo crear el hogar, inténtalo de nuevo.';
     console.error(error || data);
     return;
   }
   hogarId = codigo;
   localStorage.setItem(HOGAR_PREFERIDO_KEY, hogarId);
   setTimeout(() => {
-    alert(
+    mostrarAlerta(
       'Vuestro código de hogar es: ' + codigo + '\n\n' +
       'Los emails que has autorizado ya pueden entrar desde cualquier móvil (Crear cuenta o Iniciar sesión con ese mismo email) y luego "Unirme con un código" usando este código.\n\n' +
       '¡Guardad el código en algún sitio!'
@@ -2132,7 +2253,7 @@ async function canjearInvitacionYArrancar(token){
 
   if(data === 'invalido' || data === 'caducado'){
     setTimeout(() => {
-      alert(data === 'caducado'
+      mostrarAlerta(data === 'caducado'
         ? 'Este enlace de invitación ha caducado. Pide uno nuevo a quien te invitó.'
         : 'Este enlace de invitación ya no es válido. Pide uno nuevo a quien te invitó.');
     }, 300);
@@ -2390,6 +2511,111 @@ window.addEventListener('offline', _actualizarBannerOffline);
 _actualizarBannerOffline();
 procesarColaOffline(); // por si quedaron cambios sin sincronizar de la última vez
 
+
+// Carga Tesseract.js solo la primera vez que hace falta (al escanear un
+// ticket), en vez de siempre al abrir la app — así quien nunca escanea
+// nada no paga ese tiempo de carga de más.
+let _tesseractCargando = null;
+function _cargarTesseractSiHaceFalta(){
+  if(window.Tesseract) return Promise.resolve();
+  if(_tesseractCargando) return _tesseractCargando;
+  _tesseractCargando = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return _tesseractCargando;
+}
+
+/* =========================================================================
+   HELPERS COMUNES (antes repetidos a mano en cada sitio distinto)
+   ========================================================================= */
+
+// Muestra un mensaje de estado de forma consistente en cualquier <p>/<span>
+// que uses para avisos ("Guardado ✓", "No se pudo enviar", etc.), con
+// borrado automático opcional a los pocos segundos.
+function mostrarMensaje(elemento, texto, msSiDesaparece){
+  elemento.textContent = texto;
+  if(msSiDesaparece){
+    setTimeout(() => {
+      if(elemento.textContent === texto) elemento.textContent = '';
+    }, msSiDesaparece);
+  }
+}
+
+// Valida que un campo de texto no esté vacío (quitando espacios de sobra),
+// y si lo está, enseña el mensaje en el sitio indicado. Devuelve el texto
+// ya recortado si es válido, o null si no lo es.
+function validarTextoNoVacio(valor, elementoError, mensajeError){
+  const limpio = (valor || '').trim();
+  if(!limpio){
+    if(elementoError) mostrarMensaje(elementoError, mensajeError || 'Este campo no puede estar vacío.', 3000);
+    return null;
+  }
+  return limpio;
+}
+
+// Inserta una fila en una tabla "de hogar" que NO pasa por coleccion()
+// (gastos, sugerencias, precios comunitarios...) — centraliza el patrón
+// de generar el id + meter el hogar_id + comprobar el error, que antes
+// estaba repetido casi igual en cada sitio.
+async function insertarEnTablaDelHogar(tabla, datos){
+  const { error } = await supabaseClient.from(tabla).insert({
+    id: _generarId(),
+    hogar_id: hogarId,
+    ...datos
+  });
+  if(error) console.error(`Error insertando en ${tabla}:`, error);
+  return { error };
+}
+
+// Sustituyen a alert()/prompt() nativos por modales propios, consistentes
+// con el resto de la app (y que sí respetan el modo noche, a diferencia
+// de los diálogos nativos del navegador, que siempre salen en blanco).
+function mostrarAlerta(mensaje){
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('genericAlertOverlay');
+    document.getElementById('genericAlertText').textContent = mensaje;
+    overlay.classList.add('active');
+    const btn = document.getElementById('genericAlertOkBtn');
+    const onOk = () => {
+      overlay.classList.remove('active');
+      btn.removeEventListener('click', onOk);
+      resolve();
+    };
+    btn.addEventListener('click', onOk);
+  });
+}
+
+function mostrarPrompt(mensaje, valorInicial){
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('genericPromptOverlay');
+    const input = document.getElementById('genericPromptInput');
+    document.getElementById('genericPromptText').textContent = mensaje;
+    input.value = valorInicial != null ? valorInicial : '';
+    overlay.classList.add('active');
+    setTimeout(() => { input.focus(); input.select(); }, 200);
+
+    const saveBtn = document.getElementById('genericPromptSaveBtn');
+    const cancelBtn = document.getElementById('genericPromptCancelBtn');
+
+    function limpiar(){
+      overlay.classList.remove('active');
+      saveBtn.removeEventListener('click', onSave);
+      cancelBtn.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onEnter);
+    }
+    function onSave(){ limpiar(); resolve(input.value); }
+    function onCancel(){ limpiar(); resolve(null); }
+    function onEnter(e){ if(e.key === 'Enter') onSave(); }
+
+    saveBtn.addEventListener('click', onSave);
+    cancelBtn.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onEnter);
+  });
+}
 
 function _crearDocRef(tabla, id, esDeColeccion){
   const filtro = esDeColeccion ? { id, hogar_id: hogarId } : { hogar_id: hogarId };
@@ -2937,6 +3163,9 @@ function renderShoppingList(){
       const span = document.createElement('span');
       span.className = 'item-text' + (item.done ? ' done' : '');
       span.textContent = item.text;
+      span.style.cursor = 'pointer';
+      span.title = 'Toca para editar';
+      span.addEventListener('click', () => abrirEditarItem(item.id, item.text, item.quantity || 1));
       textCol.appendChild(span);
 
       // Registro de actividad: quién lo añadió (ya no hace falta "quién lo
@@ -3010,9 +3239,43 @@ newItemInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') addItem(
 
 // Función común que realmente escribe en Firestore (la usan el input, los
 // chips rápidos y los "Básicos de la Compra")
+/* --- Editar un producto ya existente de la lista (nombre y cantidad) --- */
+const editItemOverlay   = document.getElementById('editItemOverlay');
+const editItemTextInput = document.getElementById('editItemTextInput');
+const editItemQtyInput  = document.getElementById('editItemQtyInput');
+let _editandoItemId = null;
+
+function abrirEditarItem(id, textoActual, cantidadActual){
+  _editandoItemId = id;
+  editItemTextInput.value = textoActual;
+  editItemQtyInput.value = cantidadActual;
+  editItemOverlay.classList.add('active');
+  setTimeout(() => editItemTextInput.focus(), 200);
+}
+document.getElementById('editItemCancelBtn').addEventListener('click', () => {
+  editItemOverlay.classList.remove('active');
+});
+editItemOverlay.addEventListener('click', (e) => { if(e.target === editItemOverlay) editItemOverlay.classList.remove('active'); });
+document.getElementById('editItemSaveBtn').addEventListener('click', () => {
+  const nuevoTexto = validarTextoNoVacio(editItemTextInput.value, null);
+  if(!nuevoTexto || !_editandoItemId) return;
+  const nuevaCantidad = Math.max(1, Number(editItemQtyInput.value) || 1);
+  shoppingRef.doc(_editandoItemId).update({ text: mayusculaInicial(nuevoTexto), quantity: nuevaCantidad });
+  editItemOverlay.classList.remove('active');
+});
+
+// Pone en mayúscula la primera letra, pase lo que pase con el teclado del
+// móvil de turno (hay iPhones que, según sus ajustes, mandan todo en
+// minúscula aunque el campo pida autocapitalize) — así queda igual en la
+// lista lo escriba quien lo escriba, desde el móvil que sea.
+function mayusculaInicial(texto){
+  if(!texto) return texto;
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 function addItemToFirestore(text){
   shoppingRef.add({
-    text: text,
+    text: mayusculaInicial(text),
     done: false,
     quantity: 1,
     addedBy: miNombre,
@@ -3300,6 +3563,9 @@ function renderAgenda(){
       apptsRef.doc(appt.id).delete();
     });
     row.appendChild(del);
+    row.querySelector('.title').style.cursor = 'pointer';
+    row.querySelector('.title').title = 'Toca para editar';
+    row.querySelector('.title').addEventListener('click', () => abrirEditarCita(appt));
     agendaList.appendChild(row);
   });
 }
@@ -3479,15 +3745,33 @@ const apptTimeInput  = document.getElementById('apptTime');
 const apptRecurrenceInput = document.getElementById('apptRecurrence');
 const apptImportantInput = document.getElementById('apptImportant');
 
+let _editandoCitaId = null;
+
 function openApptModal(date){
+  _editandoCitaId = null;
   sheetDate.textContent = `Nueva cita · ${date.getDate()} de ${MESES[date.getMonth()]}`;
   apptTitleInput.value = '';
   apptTimeInput.value = '09:00';
   apptRecurrenceInput.value = '';
   apptImportantInput.checked = false;
+  document.getElementById('apptSave').textContent = 'Guardar';
   overlay.classList.add('active');
   setTimeout(() => apptTitleInput.focus(), 200);
 }
+
+// Abre el mismo modal pero para EDITAR una cita que ya existe.
+function abrirEditarCita(appt){
+  _editandoCitaId = appt.id;
+  sheetDate.textContent = '✏️ Editar cita';
+  apptTitleInput.value = appt.title;
+  apptTimeInput.value = appt.time;
+  apptRecurrenceInput.value = appt.recurrence || '';
+  apptImportantInput.checked = !!appt.important;
+  document.getElementById('apptSave').textContent = 'Guardar cambios';
+  overlay.classList.add('active');
+  setTimeout(() => apptTitleInput.focus(), 200);
+}
+
 function closeApptModal(){ overlay.classList.remove('active'); }
 
 document.getElementById('apptCancel').addEventListener('click', closeApptModal);
@@ -3498,14 +3782,23 @@ document.getElementById('apptSave').addEventListener('click', () => {
   const time = apptTimeInput.value;
   if(!title || !time) return;
 
-  apptsRef.add({
-    title,
-    time,
-    date: dateKey(selectedDate),
-    recurrence: apptRecurrenceInput.value || null,
-    important: apptImportantInput.checked,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  if(_editandoCitaId){
+    apptsRef.doc(_editandoCitaId).update({
+      title,
+      time,
+      recurrence: apptRecurrenceInput.value || null,
+      important: apptImportantInput.checked
+    });
+  } else {
+    apptsRef.add({
+      title,
+      time,
+      date: dateKey(selectedDate),
+      recurrence: apptRecurrenceInput.value || null,
+      important: apptImportantInput.checked,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
 
   closeApptModal();
 });
@@ -3619,8 +3912,8 @@ function renderPlants(){
     statusEl2.textContent = texto;
     // Tocando el texto se puede cambiar la frecuencia de riego de esta planta
     statusEl2.title = 'Toca para cambiar cada cuántos días regarla';
-    statusEl2.addEventListener('click', () => {
-      const nueva = Number(prompt(`¿Cada cuántos días queréis regar "${plant.name}"?`, frecuencia));
+    statusEl2.addEventListener('click', async () => {
+      const nueva = Number(await mostrarPrompt(`¿Cada cuántos días queréis regar "${plant.name}"?`, frecuencia));
       if(!nueva || nueva <= 0) return;
       plantsRef.doc(id).update({ wateringFreqDays: nueva });
     });
@@ -3649,6 +3942,80 @@ function renderPlants(){
 
   emptyPlantHint.style.display = ultimosPlantDocs.length === 0 ? 'block' : 'none';
 }
+
+
+/* =========================================================================
+   4B) MANTENIMIENTO DEL HOGAR
+   -------------------------------------------------------------------------
+   Tareas periódicas de la casa (no de riego): "cambiar el filtro del aire
+   cada 60 días", "revisar el extintor cada 180"... El aviso real cuando
+   toca lo manda notify-scheduled, igual que con las plantas.
+   ========================================================================= */
+const maintenanceRef = coleccion('maintenance_tasks');
+const newMaintenanceInput = document.getElementById('newMaintenanceInput');
+const newMaintenanceFreqInput = document.getElementById('newMaintenanceFreqInput');
+const addMaintenanceBtn = document.getElementById('addMaintenanceBtn');
+const maintenanceListEl = document.getElementById('maintenanceList');
+const emptyMaintenanceHint = document.getElementById('emptyMaintenanceHint');
+
+addMaintenanceBtn.addEventListener('click', () => {
+  const nombre = validarTextoNoVacio(newMaintenanceInput.value, null);
+  if(!nombre) return;
+  const frecuencia = Number(newMaintenanceFreqInput.value) || 30;
+  maintenanceRef.add({
+    name: nombre,
+    frequencyDays: frecuencia,
+    lastDoneAt: null,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  newMaintenanceInput.value = '';
+  newMaintenanceFreqInput.value = 30;
+});
+newMaintenanceInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') addMaintenanceBtn.click(); });
+
+function textoUltimoMantenimiento(fecha, frecuenciaDias){
+  if(!fecha) return 'Nunca hecho';
+  const dias = Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000);
+  const proxima = frecuenciaDias - dias;
+  if(proxima <= 0) return `Hecho hace ${dias} días — ¡toca ya!`;
+  return `Hecho hace ${dias} días · próxima en ${proxima}`;
+}
+
+maintenanceRef.orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
+  maintenanceListEl.innerHTML = '';
+  emptyMaintenanceHint.style.display = snapshot.empty ? 'block' : 'none';
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    const id = doc.id;
+    const li = document.createElement('li');
+    li.className = 'plant-card';
+
+    const info = document.createElement('div');
+    const nameEl = document.createElement('div');
+    nameEl.className = 'plant-name';
+    nameEl.textContent = `${data.name} (cada ${data.frequencyDays} días)`;
+    const statusEl = document.createElement('div');
+    statusEl.className = 'plant-status';
+    statusEl.textContent = textoUltimoMantenimiento(data.lastDoneAt, data.frequencyDays);
+    info.append(nameEl, statusEl);
+
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'btn-water';
+    doneBtn.textContent = '✅ Hecho';
+    doneBtn.addEventListener('click', () => {
+      maintenanceRef.doc(id).update({ lastDoneAt: firebase.firestore.FieldValue.serverTimestamp() });
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => maintenanceRef.doc(id).delete());
+
+    li.append(info, doneBtn, delBtn);
+    maintenanceListEl.appendChild(li);
+  });
+});
 
 
 /* =========================================================================
@@ -3859,8 +4226,8 @@ savingsGoalsRef.orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
     addBtn.className = 'btn-savings-add';
     addBtn.type = 'button';
     addBtn.textContent = '＋ Añadir dinero';
-    addBtn.addEventListener('click', () => {
-      const cantidad = Number(prompt(`¿Cuánto dinero añadís a "${data.label}"? (€)`, '10'));
+    addBtn.addEventListener('click', async () => {
+      const cantidad = Number(await mostrarPrompt(`¿Cuánto dinero añadís a "${data.label}"? (€)`, '10'));
       if(!cantidad || cantidad <= 0) return;
       savingsGoalsRef.doc(id).update({ current: current + cantidad });
     });
@@ -3869,8 +4236,8 @@ savingsGoalsRef.orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
     removeBtn.className = 'btn-savings-remove';
     removeBtn.type = 'button';
     removeBtn.textContent = '－ Retirar';
-    removeBtn.addEventListener('click', () => {
-      const cantidad = Number(prompt(`¿Cuánto dinero retiráis de "${data.label}"? (€)`, '10'));
+    removeBtn.addEventListener('click', async () => {
+      const cantidad = Number(await mostrarPrompt(`¿Cuánto dinero retiráis de "${data.label}"? (€)`, '10'));
       if(!cantidad || cantidad <= 0) return;
       savingsGoalsRef.doc(id).update({ current: current - cantidad });
     });
@@ -3881,10 +4248,10 @@ savingsGoalsRef.orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
     editBtn.className = 'btn-savings-edit';
     editBtn.type = 'button';
     editBtn.textContent = '✎ Cambiar objetivo';
-    editBtn.addEventListener('click', () => {
-      const nuevaEtiqueta = prompt('¿Cuál es el objetivo?', data.label);
+    editBtn.addEventListener('click', async () => {
+      const nuevaEtiqueta = await mostrarPrompt('¿Cuál es el objetivo?', data.label);
       if(nuevaEtiqueta === null) return; // canceló
-      const nuevoObjetivo = Number(prompt('¿Cuántos € queréis ahorrar?', target));
+      const nuevoObjetivo = Number(await mostrarPrompt('¿Cuántos € queréis ahorrar?', target));
       if(!nuevoObjetivo || nuevoObjetivo <= 0) return;
       savingsGoalsRef.doc(id).update({
         label: nuevaEtiqueta.trim() || 'Objetivo de ahorro',
@@ -3897,10 +4264,10 @@ savingsGoalsRef.orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
   });
 });
 
-addSavingsGoalBtn.addEventListener('click', () => {
-  const etiqueta = prompt('¿Cuál es el nuevo objetivo?', 'Fin de semana escapada');
+addSavingsGoalBtn.addEventListener('click', async () => {
+  const etiqueta = await mostrarPrompt('¿Cuál es el nuevo objetivo?', 'Fin de semana escapada');
   if(etiqueta === null) return;
-  const objetivo = Number(prompt('¿Cuántos € queréis ahorrar?', '300'));
+  const objetivo = Number(await mostrarPrompt('¿Cuántos € queréis ahorrar?', '300'));
   if(!objetivo || objetivo <= 0) return;
   savingsGoalsRef.add({
     label: etiqueta.trim() || 'Objetivo de ahorro',
@@ -3939,6 +4306,7 @@ receiptFileInput.addEventListener('change', async (e) => {
   receiptScanStatus.textContent = '📷 Leyendo el ticket… puede tardar unos segundos';
 
   try{
+    await _cargarTesseractSiHaceFalta();
     const { data: { text } } = await Tesseract.recognize(file, 'spa');
     const importe = extraerImporteDeTicket(text);
     if(importe){
@@ -4072,6 +4440,7 @@ communityReceiptFileInput.addEventListener('change', async (e) => {
   communityScanStatus.textContent = '📷 Leyendo el ticket… puede tardar unos segundos';
 
   try{
+    await _cargarTesseractSiHaceFalta();
     const { data: { text } } = await Tesseract.recognize(file, 'spa');
     communityStoreSelect.value = detectarSupermercado(text);
     productosDetectados = extraerProductosDeTicket(text);
@@ -4131,20 +4500,22 @@ saveCommunityPricesBtn.addEventListener('click', async () => {
       const generic = normalizarTermino(p.name);
       if(!generic) continue;
 
-      const { data: existente } = await supabaseClient
+      const { data: existente, error: errBuscar } = await supabaseClient
         .from('price_preferences')
         .select('id, times_scanned')
         .eq('hogar_id', hogarId)
         .eq('generic_term', generic)
         .eq('product_name', p.name)
         .maybeSingle();
+      if(errBuscar) console.error('Error buscando price_preferences:', errBuscar);
 
       if(existente){
-        await supabaseClient.from('price_preferences')
+        const { error: errUpdate } = await supabaseClient.from('price_preferences')
           .update({ times_scanned: existente.times_scanned + 1, price: p.price, store, updated_at: new Date().toISOString() })
           .eq('id', existente.id);
+        if(errUpdate) console.error('Error actualizando price_preferences:', errUpdate);
       } else {
-        await supabaseClient.from('price_preferences').insert({
+        const { error: errInsert } = await supabaseClient.from('price_preferences').insert({
           id: _generarId(),
           hogar_id: hogarId,
           generic_term: generic,
@@ -4153,6 +4524,7 @@ saveCommunityPricesBtn.addEventListener('click', async () => {
           price: p.price,
           times_scanned: 1
         });
+        if(errInsert) console.error('Error insertando price_preferences:', errInsert);
       }
     }
   }
@@ -4161,11 +4533,11 @@ saveCommunityPricesBtn.addEventListener('click', async () => {
 
   if(error){
     console.error(error);
-    communityScanStatus.textContent = 'No se pudo guardar en la base de precios. Inténtalo de nuevo.';
+    mostrarMensaje(communityScanStatus, 'No se pudo guardar en la base de precios. Inténtalo de nuevo.');
     return;
   }
 
-  communityScanStatus.textContent = `¡Guardado! ${filas.length} precio(s) añadidos a la base compartida. ✓`;
+  mostrarMensaje(communityScanStatus, `¡Guardado! ${filas.length} precio(s) añadidos a la base compartida. ✓`);
   productosDetectados = [];
   communityReviewBlock.style.display = 'none';
 });
@@ -4185,7 +4557,7 @@ async function buscarPrecios(){
 
   const { data, error } = await supabaseClient
     .from('community_prices')
-    .select('store, price')
+    .select('store, price, product_name')
     .ilike('product_name', `%${termino}%`)
     .order('created_at', { ascending: false })
     .limit(300);
@@ -4201,23 +4573,39 @@ async function buscarPrecios(){
     return;
   }
 
-  const porTienda = {};
+  // Importante: NO mezclamos "leche semi", "leche entera" y "leche sin
+  // lactosa" en una sola media — eso daría un número sin sentido. En vez
+  // de eso, agrupamos por PRODUCTO CONCRETO (nombre exacto) dentro de
+  // cada supermercado, para que veas cada variante por separado.
+  const grupos = {}; // { "Mercadona||Leche Pascual Semi 1L": [precios...] }
   data.forEach((fila) => {
-    if(!porTienda[fila.store]) porTienda[fila.store] = [];
-    porTienda[fila.store].push(Number(fila.price));
+    const clave = `${fila.store}||${fila.product_name}`;
+    if(!grupos[clave]) grupos[clave] = { store: fila.store, product_name: fila.product_name, precios: [] };
+    grupos[clave].precios.push(Number(fila.price));
+  });
+
+  const filasOrdenadas = Object.values(grupos).sort((a, b) => {
+    if(a.store !== b.store) return a.store.localeCompare(b.store);
+    return b.precios.length - a.precios.length; // más mencionado primero, dentro de cada súper
   });
 
   priceSearchResults.innerHTML = '';
-  Object.keys(porTienda)
-    .sort((a, b) => (porTienda[a].reduce((s,v)=>s+v,0)/porTienda[a].length) - (porTienda[b].reduce((s,v)=>s+v,0)/porTienda[b].length))
-    .forEach((tienda) => {
-      const precios = porTienda[tienda];
-      const media = precios.reduce((s, v) => s + v, 0) / precios.length;
-      const row = document.createElement('div');
-      row.className = 'price-result-row';
-      row.innerHTML = `<span class="store-name">${escapeHtml(tienda)}</span><span><span class="price-avg">${media.toFixed(2)}€</span> <span class="price-count">(${precios.length} dato${precios.length === 1 ? '' : 's'})</span></span>`;
-      priceSearchResults.appendChild(row);
-    });
+  let tiendaAnterior = null;
+  filasOrdenadas.forEach((grupo) => {
+    if(grupo.store !== tiendaAnterior){
+      const cabecera = document.createElement('div');
+      cabecera.className = 'store-name';
+      cabecera.style.marginTop = '10px';
+      cabecera.textContent = grupo.store;
+      priceSearchResults.appendChild(cabecera);
+      tiendaAnterior = grupo.store;
+    }
+    const media = grupo.precios.reduce((s, v) => s + v, 0) / grupo.precios.length;
+    const row = document.createElement('div');
+    row.className = 'price-result-row';
+    row.innerHTML = `<span>${escapeHtml(grupo.product_name)}</span><span><span class="price-avg">${media.toFixed(2)}€</span> <span class="price-count">(${grupo.precios.length} dato${grupo.precios.length === 1 ? '' : 's'})</span></span>`;
+    priceSearchResults.appendChild(row);
+  });
 }
 
 priceSearchBtn.addEventListener('click', buscarPrecios);
@@ -4247,41 +4635,64 @@ calcularGastoBtn.addEventListener('click', async () => {
     return;
   }
 
+  // Antes esto hacía hasta 2 consultas a Supabase POR PRODUCTO (podían ser
+  // 40-60 peticiones con una lista larga). Ahora: como mucho 2 consultas
+  // en total, para todos los productos de golpe.
+  const terminos = [...new Set(items.map((item) => normalizarTermino(item.text)).filter(Boolean))];
+  const precioPorTermino = {}; // { "leche": 0.95, ... }
+
+  if(terminos.length > 0){
+    // 1) Variantes predominantes de ESTE hogar, para todos los términos de golpe.
+    const { data: preferidos } = await supabaseClient
+      .from('price_preferences')
+      .select('generic_term, price, times_scanned')
+      .eq('hogar_id', hogarId)
+      .in('generic_term', terminos)
+      .order('times_scanned', { ascending: false });
+
+    (preferidos || []).forEach((p) => {
+      if(!(p.generic_term in precioPorTermino)) precioPorTermino[p.generic_term] = Number(p.price);
+    });
+
+    // 2) Para los términos que no tengan variante propia, tiramos de la
+    // base compartida — en una sola consulta con "OR" para todos a la vez.
+    const terminosSinPreferencia = terminos.filter((t) => !(t in precioPorTermino));
+    if(terminosSinPreferencia.length > 0){
+      const condicionOr = terminosSinPreferencia.map((t) => `product_name.ilike.%${t}%`).join(',');
+      const { data: comunidad } = await supabaseClient
+        .from('community_prices')
+        .select('price, product_name')
+        .or(condicionOr)
+        .limit(500);
+
+      // Repartimos cada fila de la comunidad al término que le corresponda
+      // (el que aparezca dentro del nombre del producto), y dentro de cada
+      // término nos quedamos con la variante concreta más repetida — igual
+      // que antes, solo que calculado de una vez para todos.
+      terminosSinPreferencia.forEach((termino) => {
+        const filasDeEsteTermino = (comunidad || []).filter((f) =>
+          f.product_name.toLowerCase().includes(termino)
+        );
+        if(filasDeEsteTermino.length === 0) return;
+
+        const porProducto = {};
+        filasDeEsteTermino.forEach((f) => {
+          (porProducto[f.product_name] ||= []).push(Number(f.price));
+        });
+        const masFrecuente = Object.values(porProducto).sort((a, b) => b.length - a.length)[0];
+        precioPorTermino[termino] = masFrecuente.reduce((s, v) => s + v, 0) / masFrecuente.length;
+      });
+    }
+  }
+
   let total = 0;
   const filas = [];
 
   for(const item of items){
     const termino = normalizarTermino(item.text);
-    let precioUnidad = null;
-
-    if(termino){
-      // 1) ¿Este hogar tiene una variante predominante para este término?
-      const { data: preferido } = await supabaseClient
-        .from('price_preferences')
-        .select('product_name, price, times_scanned')
-        .eq('hogar_id', hogarId)
-        .eq('generic_term', termino)
-        .order('times_scanned', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if(preferido){
-        precioUnidad = Number(preferido.price);
-      } else {
-        // 2) Si no, media de la base compartida para ese término
-        const { data: comunidad } = await supabaseClient
-          .from('community_prices')
-          .select('price')
-          .ilike('product_name', `%${termino}%`)
-          .limit(200);
-
-        if(comunidad && comunidad.length > 0){
-          precioUnidad = comunidad.reduce((s, f) => s + Number(f.price), 0) / comunidad.length;
-        }
-      }
-    }
-
+    const precioUnidad = termino && (termino in precioPorTermino) ? precioPorTermino[termino] : null;
     const cantidad = item.quantity || 1;
+
     if(precioUnidad !== null){
       total += precioUnidad * cantidad;
       filas.push({ texto: item.text, cantidad, precio: precioUnidad * cantidad, sinPrecio: false });
@@ -4777,7 +5188,7 @@ modeBtns.forEach((btn) => {
 function enviarMensaje(modo){
   const frases = phrasesCache[modo] || [];
   if(frases.length === 0){
-    alert('No hay frases guardadas en esta categoría. Añade alguna en Ajustes.');
+    mostrarAlerta('No hay frases guardadas en esta categoría. Añade alguna en Ajustes.');
     return;
   }
   const frase = frases[Math.floor(Math.random() * frases.length)].text;
@@ -4805,10 +5216,22 @@ let ultimaReaccionVista = null;
 let primerCargaMensajes = true; // evita mostrar un toast "viejo" al abrir la app
 
 const toastReactions = document.getElementById('toastReactions');
+const lastMessageCard = document.getElementById('lastMessageCard');
+const lastMessageFrom = document.getElementById('lastMessageFrom');
+const lastMessageText = document.getElementById('lastMessageText');
+const persistentReactions = document.getElementById('persistentReactions');
+const lastMessageReactionShown = document.getElementById('lastMessageReactionShown');
+
+function reaccionarAlUltimoMensaje(emoji){
+  messagesRef.update({ reaction: emoji });
+}
+
+// Los botones existen en DOS sitios (el aviso emergente, y la tarjeta fija
+// de la pestaña Mensajes) — enganchamos los dos igual.
 document.querySelectorAll('.toast-reaction-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    messagesRef.update({ reaction: btn.dataset.emoji });
-    toastReactions.style.display = 'none'; // ya has reaccionado a este mensaje
+    reaccionarAlUltimoMensaje(btn.dataset.emoji);
+    toastReactions.style.display = 'none'; // ya has reaccionado, en el aviso emergente
   });
 });
 
@@ -4816,9 +5239,20 @@ messagesRef.onSnapshot((doc) => {
   if(!doc.exists) return;
   const data = doc.data();
 
+  // La tarjeta FIJA de la pestaña Mensajes se actualiza SIEMPRE, incluso
+  // en la primera carga — a diferencia del aviso emergente, aquí sí
+  // queremos que se vea el último mensaje aunque sea de hace días, para
+  // poder reaccionar cuando os venga bien, no solo en el momento en que
+  // llega.
+  lastMessageCard.style.display = '';
+  lastMessageFrom.textContent = `${data.from} · ${data.modo}`;
+  lastMessageText.textContent = data.texto;
+  persistentReactions.style.display = data.reaction ? 'none' : '';
+  lastMessageReactionShown.textContent = data.reaction ? `Reaccionado con ${data.reaction}` : '';
+
   // En la primera carga (justo al abrir la app) solo memorizamos el
-  // identificador, pero no mostramos el toast: si no, cada vez que abrieras
-  // la app volvería a aparecer el último mensaje que ya visteis hace días.
+  // identificador, pero no mostramos el AVISO EMERGENTE: si no, cada vez
+  // que abrieras la app volvería a aparecer el último mensaje de hace días.
   if(primerCargaMensajes){
     primerCargaMensajes = false;
     ultimoEnvioIdVisto = data.envioId;
@@ -4850,6 +5284,10 @@ messagesRef.onSnapshot((doc) => {
     messageToast.classList.add('show');
     setTimeout(() => { messageToast.classList.remove('show'); }, 4000);
   }
+});
+
+document.querySelectorAll('#persistentReactions .toast-reaction-btn').forEach((btn) => {
+  btn.addEventListener('click', () => reaccionarAlUltimoMensaje(btn.dataset.emoji));
 });
 
 
@@ -5004,7 +5442,7 @@ async function addRecommendedCategoriesFaltantes(){
   const faltantes = DEFAULT_CATEGORIAS.filter(c => !nombresActuales.has(c.name));
 
   if(faltantes.length === 0){
-    alert('Ya tienes todas las categorías recomendadas. 🎉');
+    mostrarAlerta('Ya tienes todas las categorías recomendadas. 🎉');
     return;
   }
 
@@ -5022,7 +5460,7 @@ async function addRecommendedCategoriesFaltantes(){
   renderShoppingList();
   renderCategoryAdminSelect();
   addRecommendedCategoriesBtn.disabled = false;
-  alert(`Añadidas ${faltantes.length} categoría(s) nueva(s): ${faltantes.map(c => c.name).join(', ')}`);
+  mostrarAlerta(`Añadidas ${faltantes.length} categoría(s) nueva(s): ${faltantes.map(c => c.name).join(', ')}`);
 }
 
 // --- Accesos rápidos de la lista (quickChips) ---
@@ -5152,7 +5590,7 @@ document.getElementById('deleteAccountConfirmBtn').addEventListener('click', asy
     if(!res.ok) throw new Error('La función devolvió un error: ' + res.status);
 
     deleteAccountOverlay.classList.remove('active');
-    alert('Tu cuenta se ha eliminado. Vas a salir de la app.');
+    mostrarAlerta('Tu cuenta se ha eliminado. Vas a salir de la app.');
     await supabaseClient.auth.signOut();
     localStorage.clear();
     location.reload();
@@ -5345,7 +5783,7 @@ function pintarInvitacionQR(token){
       await navigator.clipboard.writeText(url);
       btnCopiar.textContent = '¡Copiado! ✓';
       setTimeout(() => { btnCopiar.textContent = '📋 Copiar enlace'; }, 1500);
-    }catch(e){ alert('No se pudo copiar. Copia el enlace de arriba a mano.'); }
+    }catch(e){ mostrarAlerta('No se pudo copiar. Copia el enlace de arriba a mano.'); }
   });
 
   const btnNuevo = document.createElement('button');
@@ -5364,7 +5802,7 @@ async function generarInvitacionQR(){
   qrGenerateBtn.disabled = false;
 
   if(error || !token){
-    alert('No se pudo generar la invitación. Inténtalo de nuevo.');
+    mostrarAlerta('No se pudo generar la invitación. Inténtalo de nuevo.');
     console.error(error);
     return;
   }
@@ -5425,7 +5863,7 @@ function pintarCompartirApp(){
       await navigator.clipboard.writeText(url);
       btnCopiar.textContent = '¡Copiado! ✓';
       setTimeout(() => { btnCopiar.textContent = '📋 Copiar enlace'; }, 1500);
-    }catch(e){ alert('No se pudo copiar. Copia el enlace de arriba a mano.'); }
+    }catch(e){ mostrarAlerta('No se pudo copiar. Copia el enlace de arriba a mano.'); }
   });
 
   actions.append(btnWa, btnCopiar);
@@ -5628,16 +6066,18 @@ const addSuggestionBtn   = document.getElementById('addSuggestionBtn');
 const suggestionMsg      = document.getElementById('suggestionMsg');
 
 addSuggestionBtn.addEventListener('click', async () => {
-  const texto = newSuggestionInput.value.trim();
+  const texto = validarTextoNoVacio(newSuggestionInput.value, suggestionMsg, 'Escribe algo antes de enviar.');
   if(!texto) return;
 
   addSuggestionBtn.disabled = true;
-  const { error } = await suggestionsRef.add({ text: texto });
+  // Ojo: aquí NO usamos suggestionsRef (que hace un "upsert" por dentro,
+  // y esta tabla es de solo INSERT a propósito, para que sea anónima —
+  // un upsert necesitaría permiso de lectura que esta tabla no tiene).
+  const { error } = await insertarEnTablaDelHogar('suggestions', { text: texto });
   addSuggestionBtn.disabled = false;
 
   if(error){
-    suggestionMsg.textContent = 'No se pudo enviar. Inténtalo de nuevo.';
-    console.error(error);
+    mostrarMensaje(suggestionMsg, 'No se pudo enviar. Inténtalo de nuevo.');
     return;
   }
 
@@ -5656,6 +6096,87 @@ settingsNameSaveBtn.addEventListener('click', () => {
   settingsNameSaveBtn.textContent = 'Guardado ✓';
   setTimeout(() => { settingsNameSaveBtn.textContent = 'Guardar'; }, 1500);
 });
+
+/* =========================================================================
+   AÑADIR POR VOZ (Siri / Google Assistant)
+   -------------------------------------------------------------------------
+   Genera un token secreto y personal, guardado en shortcut_tokens, y
+   construye la URL completa que hay que pegar en el Atajo de Siri o en
+   la Applet de IFTTT — llamando a esa URL se añade el producto sin abrir
+   la app para nada.
+   ========================================================================= */
+const generateShortcutBtn  = document.getElementById('generateShortcutBtn');
+const shortcutBox          = document.getElementById('shortcutBox');
+const shortcutUrlBox       = document.getElementById('shortcutUrlBox');
+const shortcutCopyBtn      = document.getElementById('shortcutCopyBtn');
+const shortcutRegenerateBtn = document.getElementById('shortcutRegenerateBtn');
+const shortcutStatus       = document.getElementById('shortcutStatus');
+
+function urlFuncionAnadirPorVoz(token){
+  return `${SUPABASE_URL}/functions/v1/add-item-webhook?token=${token}`;
+}
+
+async function cargarOCrearTokenDeAtajo(forzarNuevo){
+  const userId = await obtenerMiUserId();
+
+  if(!forzarNuevo){
+    const { data: existente } = await supabaseClient
+      .from('shortcut_tokens')
+      .select('token')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if(existente){
+      mostrarEnlaceDeAtajo(existente.token);
+      return;
+    }
+  } else {
+    await supabaseClient.from('shortcut_tokens').delete().eq('user_id', userId);
+  }
+
+  const nuevoToken = _generarId() + _generarId(); // más largo que un id normal, es un secreto
+  const { error } = await supabaseClient.from('shortcut_tokens').insert({
+    token: nuevoToken,
+    user_id: userId,
+    hogar_id: hogarId
+  });
+
+  if(error){
+    console.error(error);
+    mostrarMensaje(shortcutStatus, 'No se pudo generar el enlace. Inténtalo de nuevo.');
+    return;
+  }
+
+  mostrarEnlaceDeAtajo(nuevoToken);
+}
+
+function mostrarEnlaceDeAtajo(token){
+  shortcutUrlBox.textContent = urlFuncionAnadirPorVoz(token);
+  shortcutBox.style.display = '';
+}
+
+generateShortcutBtn.addEventListener('click', () => {
+  generateShortcutBtn.disabled = true;
+  cargarOCrearTokenDeAtajo(false).finally(() => { generateShortcutBtn.disabled = false; });
+});
+
+shortcutCopyBtn.addEventListener('click', async () => {
+  try{
+    await navigator.clipboard.writeText(shortcutUrlBox.textContent);
+    shortcutCopyBtn.textContent = '¡Copiado! ✓';
+    setTimeout(() => { shortcutCopyBtn.textContent = '📋 Copiar enlace'; }, 1500);
+  }catch(e){ mostrarAlerta('No se pudo copiar. Copia el enlace de arriba a mano.'); }
+});
+
+shortcutRegenerateBtn.addEventListener('click', async () => {
+  shortcutRegenerateBtn.disabled = true;
+  await cargarOCrearTokenDeAtajo(true);
+  shortcutRegenerateBtn.disabled = false;
+  mostrarMensaje(shortcutStatus, 'Nuevo enlace generado — el anterior ya no funciona.', 3000);
+});
+
+// Al abrir Ajustes, si ya tenías un enlace generado antes, lo mostramos
+// directamente sin que tengas que pulsar "Generar" otra vez.
+cargarOCrearTokenDeAtajo(false).catch(() => {}); // en silencio: si falla, simplemente no se enseña nada de entrada
 
 /* =========================================================================
    RULETA DE TAREAS DEL HOGAR
@@ -5715,8 +6236,8 @@ function construirRuletaSVG(){
 }
 
 girarRuletaBtn.addEventListener('click', () => {
-  if(personasActuales.length === 0){ alert('Añade al menos una persona para girar la ruleta.'); return; }
-  if(choresActuales.length === 0){ alert('Añade al menos una tarea para repartir.'); return; }
+  if(personasActuales.length === 0){ mostrarAlerta('Añade al menos una persona para girar la ruleta.'); return; }
+  if(choresActuales.length === 0){ mostrarAlerta('Añade al menos una tarea para repartir.'); return; }
 
   const n = personasActuales.length;
   const anglePer = 360 / n;
@@ -5871,26 +6392,36 @@ girarDecisionBtn.addEventListener('click', () => {
    GENERADOR DE PLANES SORPRESA
    ========================================================================= */
 const PLANES_SORPRESA = [
-  '🍝 Cocinar juntos una receta nueva que no hayáis probado',
-  '🎬 Noche de peli con las luces apagadas y palomitas',
-  '🚶 Paseo sin rumbo por una zona de la ciudad que no soléis pisar',
-  '🍷 Cena especial en casa con velas, aunque sea un martes cualquiera',
-  '🎲 Noche de juegos de mesa',
-  '📸 Mirar fotos antiguas juntos y recordar anécdotas',
-  '🌅 Madrugar un día para ver el amanecer',
-  '🛍️ Ir a curiosear a una tienda o mercadillo sin intención de comprar nada',
-  '🍦 Ir a por un helado o postre sin motivo especial',
-  '🧩 Hacer un puzle juntos',
-  '📖 Leer en voz alta un rato, cada uno un capítulo',
-  '🚗 Escapada de un día a algún sitio cercano al que no hayáis ido',
-  '🎨 Intentar pintar o dibujar algo, aunque salga fatal',
-  '🕹️ Noche de videojuegos a dobles',
-  '🧖 Tarde de spa casero: mascarillas, baño relajado, música tranquila',
-  '🍕 Pedir la cena a domicilio de un sitio que nunca hayáis probado',
-  '🌌 Tumbarse a mirar las estrellas un rato',
-  '☕ Desayuno especial y con calma, sin prisa por ningún lado',
-  '🎤 Karaoke improvisado en casa',
-  '📝 Escribir cada uno una lista de "cosas que quiero hacer contigo este año" y compartirla'
+  // -- Planes en casa, pero con más chicha que "ver una peli" a secas --
+  '🛋️ Cena de sofá: una tabla de quesos y jamón, y esa peli que lleváis meses posponiendo',
+  '🎬 Maratón de la saga que os gusta a los dos, del tirón, con palomitas y el móvil en otra habitación',
+  '🍝 Meteros en la cocina a probar una receta que nunca habéis hecho, aunque salga regular',
+  '🎲 Torneo de juegos de mesa a varias partidas, con la revancha incluida y algo en juego (quien pierde friega)',
+  '🕹️ Noche de videojuego a dobles hasta tarde, un día entre semana sin necesidad de excusa',
+  '📺 Empezar una serie nueva esta noche y ver los tres primeros capítulos seguidos',
+  '🎤 Karaoke en el salón con las canciones de siempre, las que os sabéis de memoria',
+  '📵 Noche sin móviles: solo picoteo, charla y algún juego, dejar los dos aparcados en un cajón',
+  '🧖 Noche de mascarillas y baño con calma, sin prisa por nada más',
+
+  // -- Costumbres de aquí que dan pereza planear pero luego apetecen --
+  '🍹 Vermut de domingo antes de comer, como manda la tradición, aunque sea en el bar de siempre',
+  '🍻 Salir de tapas por 3 o 4 sitios distintos, pidiendo algo diferente en cada uno',
+  '☕ Desayunar fuera un sábado en vez de en casa, sin prisa por volver',
+  '🍽️ Alargar la sobremesa de la comida sin levantaros de la mesa, aunque sea un día cualquiera',
+  '🌆 Un tardeo con amigos, no todo tiene que ser plan de los dos solos',
+  '🧺 Bajar al mercado un sábado por la mañana sin lista, solo a curiosear y comprar lo que apetezca',
+  '🔥 Organizar una barbacoa con amigos o familia el finde',
+  '🎉 Mirar si hay alguna fiesta o feria de algún pueblo cerca ese fin de semana',
+  '🚶 Salir a pasear de tarde sin más plan que veros con gente por el camino',
+
+  // -- Planes fuera, con algo de intención --
+  '🥘 Ir a comer un arroz como Dios manda, sin prisa por levantaros',
+  '🏖️ Bajar a la playa al atardecer, aunque solo sea a sentaros un rato',
+  '🥾 Coger la sierra un domingo por la mañana, antes de que apriete el calor',
+  '🏓 Echar un partido de pádel y luego algo de picar',
+  '🧩 Escape room entre los dos, para variar de la rutina',
+  '📸 Sacar las fotos antiguas del móvil y pasar un rato recordando anécdotas',
+  '📝 Escribir cada uno una lista de "cosas que quiero hacer contigo este año" y compartirla después'
 ];
 
 const sugerirPlanBtn = document.getElementById('sugerirPlanBtn');
@@ -6133,7 +6664,7 @@ function sugerirFrase(){
   const disponibles = banco.filter(f => !yaAnadidas.includes(f) && f !== newPhraseInput.value);
 
   if(disponibles.length === 0){
-    alert('Ya no quedan más frases sugeridas nuevas en esta categoría. ¡Escribe la tuya!');
+    mostrarAlerta('Ya no quedan más frases sugeridas nuevas en esta categoría. ¡Escribe la tuya!');
     return;
   }
   const elegida = disponibles[Math.floor(Math.random() * disponibles.length)];
@@ -6214,8 +6745,102 @@ fridgeNote.addEventListener('input', () => {
 });
 
 
+/* =========================================================================
+   BUSCADOR GENERAL
+   -------------------------------------------------------------------------
+   Busca a la vez en varias secciones (lista, calendario, salud, gastos,
+   nota de la nevera) y te lleva directo a la pestaña correspondiente al
+   tocar un resultado.
+   ========================================================================= */
+const globalSearchBtn     = document.getElementById('globalSearchBtn');
+const globalSearchOverlay = document.getElementById('globalSearchOverlay');
+const globalSearchInput   = document.getElementById('globalSearchInput');
+const globalSearchResults = document.getElementById('globalSearchResults');
+
+globalSearchBtn.addEventListener('click', () => {
+  globalSearchOverlay.classList.add('active');
+  globalSearchInput.value = '';
+  globalSearchResults.innerHTML = '';
+  setTimeout(() => globalSearchInput.focus(), 200);
+});
+document.getElementById('globalSearchCloseBtn').addEventListener('click', () => globalSearchOverlay.classList.remove('active'));
+globalSearchOverlay.addEventListener('click', (e) => { if(e.target === globalSearchOverlay) globalSearchOverlay.classList.remove('active'); });
+
+let _globalSearchTimeout = null;
+globalSearchInput.addEventListener('input', () => {
+  clearTimeout(_globalSearchTimeout);
+  _globalSearchTimeout = setTimeout(ejecutarBusquedaGeneral, 350);
+});
+
+async function ejecutarBusquedaGeneral(){
+  const termino = globalSearchInput.value.trim();
+  if(termino.length < 2){ globalSearchResults.innerHTML = ''; return; }
+
+  globalSearchResults.innerHTML = '<p class="settings-sub">Buscando…</p>';
+
+  const [listaRes, citasRes, saludRes, gastosRes, notaRes] = await Promise.all([
+    supabaseClient.from('shopping_list').select('id,text').eq('hogar_id', hogarId).ilike('text', `%${termino}%`).limit(10),
+    supabaseClient.from('appointments').select('id,title,date,time').eq('hogar_id', hogarId).ilike('title', `%${termino}%`).limit(10),
+    supabaseClient.from('health_log').select('id,person,note').eq('hogar_id', hogarId).ilike('note', `%${termino}%`).limit(10),
+    supabaseClient.from('expenses').select('id,description,amount').eq('hogar_id', hogarId).ilike('description', `%${termino}%`).limit(10),
+    supabaseClient.from('notes').select('text').eq('hogar_id', hogarId).ilike('text', `%${termino}%`).limit(1),
+  ]);
+
+  const secciones = [
+    { titulo: '🛒 Lista de la compra', tab: 'lista', datos: listaRes.data, render: (r) => r.text },
+    { titulo: '📅 Calendario', tab: 'cal', datos: citasRes.data, render: (r) => `${r.title} (${r.date})` },
+    { titulo: '💊 Salud', tab: 'salud', datos: saludRes.data, render: (r) => `${r.person}: ${r.note}` },
+    { titulo: '💶 Gastos', tab: 'gastos', datos: gastosRes.data, render: (r) => `${r.description} — ${r.amount}€` },
+    { titulo: '📝 Nota de la nevera', tab: 'lista', datos: notaRes.data, render: (r) => r.text },
+  ];
+
+  globalSearchResults.innerHTML = '';
+  let totalResultados = 0;
+
+  secciones.forEach((sec) => {
+    if(!sec.datos || sec.datos.length === 0) return;
+    totalResultados += sec.datos.length;
+    const cabecera = document.createElement('div');
+    cabecera.className = 'store-name';
+    cabecera.style.marginTop = '10px';
+    cabecera.textContent = sec.titulo;
+    globalSearchResults.appendChild(cabecera);
+
+    sec.datos.forEach((r) => {
+      const row = document.createElement('div');
+      row.className = 'price-result-row';
+      row.style.cursor = 'pointer';
+      row.innerHTML = `<span>${escapeHtml(sec.render(r))}</span>`;
+      row.addEventListener('click', () => {
+        globalSearchOverlay.classList.remove('active');
+        switchTab(sec.tab);
+      });
+      globalSearchResults.appendChild(row);
+    });
+  });
+
+  if(totalResultados === 0){
+    globalSearchResults.innerHTML = '<p class="settings-sub">Sin resultados.</p>';
+  }
+}
+
+
 // Primer pintado del calendario mientras llegan los datos de Supabase
 renderCalendar();
+
+// Accesibilidad por teclado: la tecla Escape cierra cualquier modal que
+// esté abierto en ese momento, sin tener que usar el ratón/dedo para
+// pulsar "Cancelar".
+document.addEventListener('keydown', (e) => {
+  if(e.key !== 'Escape') return;
+  document.querySelectorAll('.overlay.active').forEach((ov) => ov.classList.remove('active'));
+});
+
+// Enter guarda directamente en el modal de editar producto (igual que ya
+// pasa en la mayoría de formularios de una sola línea de la app).
+editItemTextInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') document.getElementById('editItemSaveBtn').click(); });
+editItemQtyInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') document.getElementById('editItemSaveBtn').click(); });
+globalSearchInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') ejecutarBusquedaGeneral(); });
 
 } // <-- fin de iniciarApp()
 
