@@ -123,8 +123,8 @@
   .theme-toggle:active{ transform:scale(.85); }
   #globalSearchBtn{
     background:rgba(255,255,255,.12); border:none; color:var(--white);
-    width:32px; height:32px; border-radius:50%; font-size:14px;
-    vertical-align:-9px; margin-left:6px;
+    width:34px; height:34px; border-radius:50%; font-size:15px;
+    position:absolute; top:calc(20px + var(--safe-top)); right:22px; z-index:2;
   }
   #globalSearchBtn:active{ background:rgba(255,255,255,.25); }
   header{
@@ -443,6 +443,17 @@
     transition:transform .15s ease;
   }
   .btn-add:active{ transform:scale(.92); }
+
+  .btn-mic{
+    background:var(--card-bg); color:var(--slate-700); border:1.5px solid var(--slate-200);
+    border-radius:16px; width:52px; font-size:19px; transition:all .15s ease; flex:0 0 auto;
+  }
+  .btn-mic:active{ transform:scale(.92); }
+  .btn-mic.escuchando{
+    background:linear-gradient(135deg,var(--danger),#FF8A65); border-color:transparent; color:var(--white);
+    animation:pulseMic 1s ease-in-out infinite;
+  }
+  @keyframes pulseMic{ 0%,100%{ box-shadow:0 0 0 0 rgba(241,73,90,.5); } 50%{ box-shadow:0 0 0 10px rgba(241,73,90,0); } }
 
   .cat-ul{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
   .cat-ul li{
@@ -1164,7 +1175,8 @@
 <div id="app" style="display:none;">
 
   <header>
-    <h1><img id="themeToggleBtn" class="theme-toggle" role="button" aria-label="Cambiar a modo noche" title="Modo noche" alt="Cambiar tema"> Nuestra Casa <button id="globalSearchBtn" type="button" aria-label="Buscar" title="Buscar">🔍</button></h1>
+    <h1><img id="themeToggleBtn" class="theme-toggle" role="button" aria-label="Cambiar a modo noche" title="Modo noche" alt="Cambiar tema"> Nuestra Casa</h1>
+    <button id="globalSearchBtn" type="button" aria-label="Buscar" title="Buscar">🔍</button>
     <p>Lista y calendario compartidos en tiempo real</p>
     <!-- Banner que avisa de las citas de HOY -->
     <div id="alertBanner"></div>
@@ -1203,8 +1215,10 @@
 
       <div class="add-row">
         <input type="text" id="newItemInput" placeholder="Ej: falta pan..." maxlength="120" autocapitalize="sentences">
+        <button class="btn-mic" id="voiceAddBtn" type="button" title="Dictar varios productos" aria-label="Dictar productos por voz">🎤</button>
         <button class="btn-add" id="addItemBtn">＋</button>
       </div>
+      <p class="empty-hint" id="voiceAddStatus" style="display:none; color:var(--green);"></p>
 
       <!-- Este contenedor ya no es un <ul> plano: el JS lo rellena con
            un bloque (cabecera + lista) por cada categoría/pasillo -->
@@ -1810,6 +1824,23 @@
   </div>
 </div>
 
+<!-- ================= MODAL: cámara propia con plantilla guía para tickets ================= -->
+<div class="overlay" id="cameraOverlay" style="background:rgba(0,0,0,.92);">
+  <div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;">
+    <video id="cameraVideo" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; position:absolute; inset:0;"></video>
+    <button id="cameraFlashBtn" type="button" style="display:none; position:absolute; top:calc(18px + var(--safe-top)); right:18px; background:rgba(255,255,255,.15); color:#fff; border:none; width:44px; height:44px; border-radius:50%; font-size:19px;">⚡</button>
+    <div style="position:relative; width:78%; max-width:320px; aspect-ratio:9/16; border:3px dashed rgba(255,255,255,.85); border-radius:14px; box-shadow:0 0 0 2000px rgba(0,0,0,.45);"></div>
+    <p style="position:relative; color:#fff; text-align:center; margin-top:16px; font-size:13.5px; padding:0 30px;">Encaja el ticket entero dentro del recuadro, bien recto y con buena luz</p>
+    <div style="position:relative; margin-top:18px; display:flex; align-items:center; gap:30px;">
+      <button id="cameraCancelBtn" type="button" style="background:rgba(255,255,255,.15); color:#fff; border:none; width:50px; height:50px; border-radius:50%; font-size:20px;">✕</button>
+      <button id="cameraCaptureBtn" type="button" style="background:#fff; border:4px solid rgba(255,255,255,.4); width:70px; height:70px; border-radius:50%;"></button>
+      <div style="width:50px;"></div>
+    </div>
+    <p id="cameraErrorMsg" style="position:relative; color:#FF8A80; text-align:center; margin-top:14px; font-size:13px; padding:0 30px;"></p>
+  </div>
+  <canvas id="cameraCanvas" style="display:none;"></canvas>
+</div>
+
 <!-- ================= MODAL: buscador general ================= -->
 <div class="overlay" id="globalSearchOverlay">
   <div class="sheet" style="max-height:80vh; display:flex; flex-direction:column;">
@@ -1930,7 +1961,21 @@
     <p class="settings-sub" style="font-size:13.5px; line-height:1.5;">✅ <strong>Estáis bien unidos</strong> si en Ajustes → "Código de vuestro hogar" veis <strong>el mismo código</strong> en los dos móviles.</p>
     <p class="settings-sub" style="font-size:13.5px; line-height:1.5;">❌ <strong>Si los códigos son distintos</strong> (o el otro móvil todavía no ha entrado a ningún hogar), la forma más fácil de arreglarlo: id a Ajustes → "Invitar con un enlace o QR", generad el enlace, y que la otra persona lo abra desde su móvil para entrar directo.</p>
     <div class="sheet-actions">
-      <button class="btn-save" id="joinReminderCloseBtn" class="u-full">Entendido</button>
+      <button class="btn-save u-full" id="joinReminderCloseBtn">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recordatorio de activar notificaciones, si al abrir la app se detecta
+     que este móvil todavía no las tiene activadas — mucha gente no se da
+     cuenta de que hay que hacerlo aparte, no viene activado solo. -->
+<div class="overlay" id="notifsReminderOverlay">
+  <div class="sheet">
+    <h3 class="u-center">🔔 Activa los avisos</h3>
+    <p class="settings-sub" style="font-size:13.5px; line-height:1.5;">Este móvil todavía no tiene las notificaciones activadas — no llegan solas, hay que activarlas una vez. Sin esto, no os enteraréis de mensajes, citas, ni de cuando alguien esté en el súper.</p>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="notifsReminderLaterBtn">Ahora no</button>
+      <button class="btn-save" id="notifsReminderActivateBtn">Activar ahora</button>
     </div>
   </div>
 </div>
@@ -3237,6 +3282,79 @@ function addItem(){
 document.getElementById('addItemBtn').addEventListener('click', addItem);
 newItemInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') addItem(); });
 
+/* =========================================================================
+   AÑADIR VARIOS PRODUCTOS DICTANDO
+   -------------------------------------------------------------------------
+   Usa el reconocimiento de voz que ya trae el propio navegador del móvil
+   (Safari en iPhone, Chrome en Android) — sin Atajos, sin apps aparte, sin
+   configurar nada. Dices algo como "leche, pan, huevos y tomates" y se
+   separan solos en 4 productos distintos.
+   ========================================================================= */
+const voiceAddBtn = document.getElementById('voiceAddBtn');
+const ReconocimientoVoz = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// Separa lo dictado en varios productos: por comas, "y", "e", "más", o saltos de línea.
+function separarProductosDictados(texto){
+  return texto
+    .split(/,|\by\b|\be\b|\bmás\b|\n/gi)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+if(!ReconocimientoVoz){
+  // El navegador no soporta dictado — ocultamos el botón en vez de dejar
+  // uno que no haría nada al tocarlo.
+  voiceAddBtn.style.display = 'none';
+} else {
+  const reconocimiento = new ReconocimientoVoz();
+  reconocimiento.lang = 'es-ES';
+  reconocimiento.continuous = false;
+  reconocimiento.interimResults = false;
+
+  let escuchando = false;
+
+  voiceAddBtn.addEventListener('click', () => {
+    if(escuchando) return; // ya está escuchando, evita dobles pulsaciones
+    try{
+      reconocimiento.start();
+    }catch(e){
+      console.error(e);
+    }
+  });
+
+  reconocimiento.addEventListener('start', () => {
+    escuchando = true;
+    voiceAddBtn.classList.add('escuchando');
+    voiceAddBtn.textContent = '⏺️';
+  });
+
+  reconocimiento.addEventListener('end', () => {
+    escuchando = false;
+    voiceAddBtn.classList.remove('escuchando');
+    voiceAddBtn.textContent = '🎤';
+  });
+
+  reconocimiento.addEventListener('error', (e) => {
+    console.error('Error de reconocimiento de voz:', e.error);
+    if(e.error === 'not-allowed' || e.error === 'permission-denied'){
+      mostrarAlerta('No se ha dado permiso para usar el micrófono. Actívalo en los ajustes del navegador.');
+    }
+  });
+
+  reconocimiento.addEventListener('result', (e) => {
+    const dicho = e.results[0][0].transcript;
+    const productos = separarProductosDictados(dicho);
+    productos.forEach((p) => addItemToFirestore(p));
+
+    if(productos.length > 0){
+      const status = document.getElementById('voiceAddStatus');
+      status.textContent = `✓ Añadido${productos.length > 1 ? 's' : ''}: ${productos.join(', ')}`;
+      status.style.display = 'block';
+      setTimeout(() => { status.style.display = 'none'; }, 3500);
+    }
+  });
+}
+
 // Función común que realmente escribe en Firestore (la usan el input, los
 // chips rápidos y los "Básicos de la Compra")
 /* --- Editar un producto ya existente de la lista (nombre y cantidad) --- */
@@ -4285,6 +4403,87 @@ addSavingsGoalBtn.addEventListener('click', async () => {
    hayan pagado alguna vez algo (funciona bien para el caso típico de una
    pareja o una casa compartida entre pocas personas).
    ========================================================================= */
+/* =========================================================================
+   CÁMARA PROPIA CON PLANTILLA GUÍA (para escanear tickets)
+   -------------------------------------------------------------------------
+   En vez de abrir la cámara nativa del móvil (donde no podemos dibujar
+   nada encima), pedimos acceso directo a la cámara y la mostramos dentro
+   de nuestra propia pantalla, con un recuadro guía superpuesto para
+   encajar el ticket. Si por lo que sea el móvil no lo permite, caemos
+   solos al selector de archivo/cámara nativa de toda la vida.
+   ========================================================================= */
+async function abrirCamaraYCapturar(inputDeRespaldo){
+  const overlay = document.getElementById('cameraOverlay');
+  const video = document.getElementById('cameraVideo');
+  const canvas = document.getElementById('cameraCanvas');
+  const errorMsg = document.getElementById('cameraErrorMsg');
+  const captureBtn = document.getElementById('cameraCaptureBtn');
+  const cancelBtn = document.getElementById('cameraCancelBtn');
+  errorMsg.textContent = '';
+
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1920 } }
+    });
+  }catch(e){
+    console.log('No se pudo abrir la cámara propia, usando la nativa:', e.message);
+    inputDeRespaldo.click(); // plan B: la cámara/selector normal del móvil
+    return null;
+  }
+
+  video.srcObject = stream;
+  overlay.classList.add('active');
+
+  // Flash/linterna: solo algunos móviles (sobre todo Android) permiten
+  // controlarlo desde la web — en iPhone, Safari no lo deja hacer todavía,
+  // así que ahí simplemente no aparece el botón en vez de salir uno roto.
+  const pistaVideo = stream.getVideoTracks()[0];
+  const flashBtn = document.getElementById('cameraFlashBtn');
+  let flashEncendido = false;
+  const soportaFlash = !!(pistaVideo.getCapabilities && pistaVideo.getCapabilities().torch);
+  flashBtn.style.display = soportaFlash ? '' : 'none';
+
+  async function alternarFlash(){
+    flashEncendido = !flashEncendido;
+    try{
+      await pistaVideo.applyConstraints({ advanced: [{ torch: flashEncendido }] });
+      flashBtn.style.background = flashEncendido ? '#FFC107' : 'rgba(255,255,255,.15)';
+      flashBtn.style.color = flashEncendido ? '#1B1D3A' : '#fff';
+    }catch(e){
+      console.log('No se pudo controlar el flash:', e.message);
+    }
+  }
+  if(soportaFlash) flashBtn.addEventListener('click', alternarFlash);
+
+  return new Promise((resolve) => {
+    function limpiar(){
+      if(soportaFlash) flashBtn.removeEventListener('click', alternarFlash);
+      if(flashEncendido) pistaVideo.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+      stream.getTracks().forEach((t) => t.stop());
+      video.srcObject = null;
+      overlay.classList.remove('active');
+      captureBtn.removeEventListener('click', onCapture);
+      cancelBtn.removeEventListener('click', onCancel);
+    }
+    function onCapture(){
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      canvas.toBlob((blob) => {
+        limpiar();
+        resolve(blob ? new File([blob], 'ticket.jpg', { type: 'image/jpeg' }) : null);
+      }, 'image/jpeg', 0.92);
+    }
+    function onCancel(){
+      limpiar();
+      resolve(null);
+    }
+    captureBtn.addEventListener('click', onCapture);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
 const balanceSummaryList  = document.getElementById('balanceSummaryList');
 const newExpenseDesc      = document.getElementById('newExpenseDesc');
 const newExpenseAmount    = document.getElementById('newExpenseAmount');
@@ -4295,13 +4494,18 @@ const receiptFileInput    = document.getElementById('receiptFileInput');
 const scanReceiptBtn      = document.getElementById('scanReceiptBtn');
 const receiptScanStatus   = document.getElementById('receiptScanStatus');
 
-scanReceiptBtn.addEventListener('click', () => receiptFileInput.click());
+scanReceiptBtn.addEventListener('click', async () => {
+  const file = await abrirCamaraYCapturar(receiptFileInput);
+  if(file) procesarTicketTotal(file);
+});
 
-receiptFileInput.addEventListener('change', async (e) => {
+receiptFileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   receiptFileInput.value = ''; // para poder volver a escanear el mismo archivo si hace falta
-  if(!file) return;
+  if(file) procesarTicketTotal(file);
+});
 
+async function procesarTicketTotal(file){
   scanReceiptBtn.disabled = true;
   receiptScanStatus.textContent = '📷 Leyendo el ticket… puede tardar unos segundos';
 
@@ -4321,25 +4525,42 @@ receiptFileInput.addEventListener('change', async (e) => {
   }
 
   scanReceiptBtn.disabled = false;
-});
+}
 
 // Busca en el texto leído del ticket algo que parezca el importe total.
 // Primero intenta encontrar una línea con "TOTAL"/"IMPORTE"/"A PAGAR" seguida
 // de un número; si no encuentra ninguna, se queda con el número con forma
 // de precio más grande de todo el ticket (suele ser el total).
 function extraerImporteDeTicket(texto){
-  const regexConEtiqueta = /(total|importe|a pagar)[^\d]{0,10}(\d+[.,]\d{2})/i;
-  const candidatos = [];
+  const lineas = texto.split('\n');
+  // Estas palabras indican que la línea habla de CÓMO se pagó (efectivo,
+  // cambio...), no de cuánto había que pagar — las descartamos siempre,
+  // aunque también contengan "total" por cómo haya leído el OCR la línea.
+  const EXCLUIR = /efectivo|cambio|entregad|recibid|tarjeta|devuelt|vuelto/i;
 
-  texto.split('\n').forEach((linea) => {
-    const m = linea.match(regexConEtiqueta);
-    if(m) candidatos.push(parseFloat(m[2].replace(',', '.')));
-  });
+  // 1) Buscamos primero una línea con la palabra "TOTAL" a secas — es la
+  // más fiable, y si aparece varias veces nos quedamos con la ÚLTIMA
+  // (los tickets suelen repetir subtotales antes del total final de verdad).
+  let ultimoTotal = null;
+  for(const linea of lineas){
+    if(EXCLUIR.test(linea)) continue;
+    const m = linea.match(/\btotal\b[^\d]{0,10}(\d{1,3}[.,]\d{2})/i);
+    if(m) ultimoTotal = parseFloat(m[1].replace(',', '.'));
+  }
+  if(ultimoTotal !== null) return ultimoTotal.toFixed(2);
 
-  if(candidatos.length > 0) return Math.max(...candidatos).toFixed(2);
+  // 2) Si no hay ninguna línea con "TOTAL", probamos con "importe"/"a pagar".
+  for(const linea of lineas){
+    if(EXCLUIR.test(linea)) continue;
+    const m = linea.match(/(importe|a pagar)[^\d]{0,10}(\d{1,3}[.,]\d{2})/i);
+    if(m) return parseFloat(m[2].replace(',', '.')).toFixed(2);
+  }
 
-  const regexNumero = /(\d+[.,]\d{2})\s*€?/g;
-  const todos = [...texto.matchAll(regexNumero)].map((m) => parseFloat(m[1].replace(',', '.')));
+  // 3) Último recurso: el número con forma de precio más grande de todo
+  // el ticket, excluyendo las líneas de pago/cambio.
+  const textoValido = lineas.filter((l) => !EXCLUIR.test(l)).join('\n');
+  const regexNumero = /(\d{1,3}[.,]\d{2})\s*€?/g;
+  const todos = [...textoValido.matchAll(regexNumero)].map((m) => parseFloat(m[1].replace(',', '.')));
   return todos.length > 0 ? Math.max(...todos).toFixed(2) : null;
 }
 
@@ -4369,7 +4590,7 @@ let productosDetectados = []; // [{ name, price }]
 
 // Palabras que aparecen en casi cualquier ticket pero NO son productos —
 // las descartamos para no meter basura en la base de precios.
-const PALABRAS_NO_PRODUCTO = /total|subtotal|iva|cambio|efectivo|tarjeta|importe|a pagar|entregado|vuelto|base imponible|nif|cif|factura|ticket|caja|fecha|hora|gracias|puntos/i;
+const PALABRAS_NO_PRODUCTO = /total|subtotal|iva|cambio|efectivo|tarjeta|importe|a pagar|entregado|vuelto|base imponible|nif|cif|factura|ticket|caja|fecha|hora|gracias|puntos|descuento|desc\.|neto|bruto|horario|apertura|devoluci[oó]n/i;
 
 function detectarSupermercado(texto){
   const t = texto.toLowerCase();
@@ -4385,15 +4606,29 @@ function detectarSupermercado(texto){
 // que parecen totales/IVA/etc. No es perfecto (el OCR gratuito falla en
 // tickets), por eso siempre se revisa a mano después.
 function extraerProductosDeTicket(texto){
-  const regexLinea = /^(.{3,40}?)\s+(\d{1,3}[.,]\d{2})\s*€?$/;
   const productos = [];
 
+  // Líneas que son un resumen de cantidad o de peso (van ANTES del
+  // producto real en el ticket, ej. "2 x 0,35 €" o "0,344 kg x 13,30
+  // €/kg"), no el producto en sí — si no las excluimos, se colarían como
+  // productos falsos con el nombre "2 x" o "0,344 kg x".
+  const ES_LINEA_RESUMEN = /^\d+([.,]\d+)?\s*[xX]\s*\d+[.,]\d+\s*€?(\s*\/?\s*kg)?$|kg\s*[xX]\s*\d+[.,]\d+\s*€\s*\/\s*kg/i;
+
   texto.split('\n').forEach((linea) => {
-    const limpia = linea.trim();
-    if(!limpia || PALABRAS_NO_PRODUCTO.test(limpia)) return;
-    const m = limpia.match(regexLinea);
+    let limpia = linea.trim();
+    if(!limpia || PALABRAS_NO_PRODUCTO.test(limpia) || ES_LINEA_RESUMEN.test(limpia)) return;
+
+    // Quita una posible cantidad al principio ("2x ", "2 "...), para que
+    // no se cuele dentro del nombre del producto.
+    limpia = limpia.replace(/^\d{1,2}\s*[xX]?\s+/, '');
+
+    // Admite espacio, puntos o guiones como separador entre el nombre y
+    // el precio (cada ticket lo formatea distinto), y tolera algo de
+    // texto sobrante después del precio (código, unidad de medida...).
+    const m = limpia.match(/^(.{2,45}?)[\s.·-]{1,20}(\d{1,3}[.,]\d{2})\s*€?\s*.{0,12}$/);
     if(!m) return;
-    const nombre = m[1].trim();
+
+    const nombre = m[1].trim().replace(/\.+$/, '');
     const precio = parseFloat(m[2].replace(',', '.'));
     if(nombre.length < 2 || !precio || precio <= 0 || precio > 500) return;
     productos.push({ name: nombre, price: precio });
@@ -4429,13 +4664,18 @@ function renderCommunityItems(){
   });
 }
 
-scanCommunityReceiptBtn.addEventListener('click', () => communityReceiptFileInput.click());
+scanCommunityReceiptBtn.addEventListener('click', async () => {
+  const file = await abrirCamaraYCapturar(communityReceiptFileInput);
+  if(file) procesarTicketComunitario(file);
+});
 
-communityReceiptFileInput.addEventListener('change', async (e) => {
+communityReceiptFileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   communityReceiptFileInput.value = '';
-  if(!file) return;
+  if(file) procesarTicketComunitario(file);
+});
 
+async function procesarTicketComunitario(file){
   scanCommunityReceiptBtn.disabled = true;
   communityScanStatus.textContent = '📷 Leyendo el ticket… puede tardar unos segundos';
 
@@ -4455,7 +4695,7 @@ communityReceiptFileInput.addEventListener('change', async (e) => {
   }
 
   scanCommunityReceiptBtn.disabled = false;
-});
+}
 
 addCommunityItemBtn.addEventListener('click', () => {
   const nombre = newCommunityItemName.value.trim();
@@ -6580,9 +6820,40 @@ async function guardarPrefsNotificaciones(){
       enableNotifsBtn.disabled = true;
       notifPrefsBlock.style.display = '';
       await cargarPrefsNotificaciones();
+    } else {
+      // Sin suscripción todavía: mostramos el recordatorio, esperando un
+      // poco por si hay otro aviso (tour, novedades...) abierto encima.
+      setTimeout(() => {
+        const tourEl = document.getElementById('tourOverlay');
+        const novedadesEl = document.getElementById('whatsNewOverlay');
+        const joinEl = document.getElementById('joinReminderOverlay');
+        const hayOtroAbierto = tourEl.classList.contains('active') || novedadesEl.classList.contains('active') || joinEl.classList.contains('active');
+        if(!hayOtroAbierto) document.getElementById('notifsReminderOverlay').classList.add('active');
+      }, 1200);
     }
   }catch(e){ console.log('No se pudo comprobar el estado de notificaciones:', e); }
 })();
+
+document.getElementById('notifsReminderLaterBtn').addEventListener('click', () => {
+  document.getElementById('notifsReminderOverlay').classList.remove('active');
+});
+document.getElementById('notifsReminderActivateBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('notifsReminderActivateBtn');
+  btn.disabled = true;
+  btn.textContent = 'Activando…';
+  try{
+    await suscribirseAPush();
+    document.getElementById('notifsReminderOverlay').classList.remove('active');
+    enableNotifsBtn.textContent = 'Notificaciones activadas ✓';
+    enableNotifsBtn.disabled = true;
+    notifPrefsBlock.style.display = '';
+    await cargarPrefsNotificaciones();
+  }catch(err){
+    console.error(err);
+    btn.textContent = 'No se pudo — inténtalo en Ajustes';
+    btn.disabled = false;
+  }
+});
 
 enableNotifsBtn.addEventListener('click', async () => {
   enableNotifsBtn.disabled = true;
