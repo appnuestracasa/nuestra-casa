@@ -3299,13 +3299,18 @@ newItemInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') addItem(
    -------------------------------------------------------------------------
    Usa el reconocimiento de voz que ya trae el propio navegador del móvil
    (Safari en iPhone, Chrome en Android) — sin Atajos, sin apps aparte, sin
-   configurar nada. Dices algo como "leche, pan, huevos y tomates" y se
-   separan solos en 4 productos distintos.
+   configurar nada. Funciona por PAUSAS: cada vez que te callas un
+   momento, ese trozo se añade como un producto y sigue escuchando el
+   siguiente — no hace falta decir "y" entre cada uno, solo pausar un
+   poco (como al enumerar la compra en voz alta de forma natural).
+   Toca el micrófono para empezar, y vuelve a tocarlo para terminar.
    ========================================================================= */
 const voiceAddBtn = document.getElementById('voiceAddBtn');
 const ReconocimientoVoz = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-// Separa lo dictado en varios productos: por comas, "y", "e", "más", o saltos de línea.
+// Por si dentro de una misma pausa se cuelan varios productos con coma o
+// "y" (a veces pasa si se dictan dos cosas muy seguidas): los separamos
+// igualmente, como red de seguridad extra.
 function separarProductosDictados(texto){
   return texto
     .split(/,|\by\b|\be\b|\bmás\b|\n/gi)
@@ -3320,13 +3325,18 @@ if(!ReconocimientoVoz){
 } else {
   const reconocimiento = new ReconocimientoVoz();
   reconocimiento.lang = 'es-ES';
-  reconocimiento.continuous = false;
+  reconocimiento.continuous = true;   // sigue escuchando tras cada pausa, no se para solo
   reconocimiento.interimResults = false;
 
   let escuchando = false;
+  let productosDeEstaSesion = [];
 
   voiceAddBtn.addEventListener('click', () => {
-    if(escuchando) return; // ya está escuchando, evita dobles pulsaciones
+    if(escuchando){
+      reconocimiento.stop(); // segundo toque: terminar de escuchar
+      return;
+    }
+    productosDeEstaSesion = [];
     try{
       reconocimiento.start();
     }catch(e){
@@ -3338,12 +3348,22 @@ if(!ReconocimientoVoz){
     escuchando = true;
     voiceAddBtn.classList.add('escuchando');
     voiceAddBtn.textContent = '⏺️';
+    const status = document.getElementById('voiceAddStatus');
+    status.textContent = '🎤 Escuchando… di los productos con una pausa entre cada uno, y toca otra vez el micro para terminar';
+    status.style.display = 'block';
   });
 
   reconocimiento.addEventListener('end', () => {
     escuchando = false;
     voiceAddBtn.classList.remove('escuchando');
     voiceAddBtn.textContent = '🎤';
+    const status = document.getElementById('voiceAddStatus');
+    if(productosDeEstaSesion.length > 0){
+      status.textContent = `✓ Añadido${productosDeEstaSesion.length > 1 ? 's' : ''}: ${productosDeEstaSesion.join(', ')}`;
+      setTimeout(() => { status.style.display = 'none'; }, 4000);
+    } else {
+      status.style.display = 'none';
+    }
   });
 
   reconocimiento.addEventListener('error', (e) => {
@@ -3357,16 +3377,23 @@ if(!ReconocimientoVoz){
     }
   });
 
+  // Con continuous=true, este evento se dispara UNA VEZ POR CADA PAUSA que
+  // detecta al hablar — cada disparo trae solo lo dicho desde la pausa
+  // anterior, así que cada uno es ya, de por sí, un "producto" natural.
   reconocimiento.addEventListener('result', (e) => {
-    const dicho = e.results[0][0].transcript;
-    const productos = separarProductosDictados(dicho);
-    productos.forEach((p) => addItemToFirestore(p));
+    const ultimoResultado = e.results[e.results.length - 1];
+    if(!ultimoResultado.isFinal) return;
 
-    if(productos.length > 0){
-      const status = document.getElementById('voiceAddStatus');
-      status.textContent = `✓ Añadido${productos.length > 1 ? 's' : ''}: ${productos.join(', ')}`;
-      status.style.display = 'block';
-      setTimeout(() => { status.style.display = 'none'; }, 3500);
+    const dicho = ultimoResultado[0].transcript;
+    const productos = separarProductosDictados(dicho);
+    productos.forEach((p) => {
+      addItemToFirestore(p);
+      productosDeEstaSesion.push(p);
+    });
+
+    const status = document.getElementById('voiceAddStatus');
+    if(productosDeEstaSesion.length > 0){
+      status.textContent = `🎤 Escuchando… añadido${productosDeEstaSesion.length > 1 ? 's' : ''} hasta ahora: ${productosDeEstaSesion.join(', ')}`;
     }
   });
 }
@@ -4532,23 +4559,64 @@ receiptFileInput.addEventListener('change', (e) => {
   if(file) procesarTicketTotal(file);
 });
 
+// Convierte el archivo de la foto a base64 (lo que necesita mandar a Gemini).
+function archivoABase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]); // quita el "data:image/jpeg;base64," de delante
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Llama a la Edge Function que usa Gemini para leer el ticket con mucha más
+// precisión que el lector local. Si falla por lo que sea (sin cuota, sin
+// conexión con Google...), lanza un error para que quien llame a esta
+// función pueda caer solo al lector local (Tesseract) como plan B.
+async function leerTicketConGemini(file){
+  const base64 = await archivoABase64(file);
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/parse-receipt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageBase64: base64, mimeType: file.type || 'image/jpeg' })
+  });
+  if(!res.ok) throw new Error('Gemini no pudo leer el ticket (código ' + res.status + ')');
+  const datos = await res.json();
+  if(datos.error) throw new Error(datos.error);
+  return datos; // { store, total, items: [{name, price}] }
+}
+
 async function procesarTicketTotal(file){
   scanReceiptBtn.disabled = true;
   receiptScanStatus.textContent = '📷 Leyendo el ticket… puede tardar unos segundos';
 
   try{
-    await _cargarTesseractSiHaceFalta();
-    const { data: { text } } = await Tesseract.recognize(file, 'spa');
-    const importe = extraerImporteDeTicket(text);
-    if(importe){
-      newExpenseAmount.value = importe;
-      receiptScanStatus.textContent = `Importe detectado: ${importe}€ — revísalo antes de guardar.`;
+    // Primero, la lectura precisa con Gemini.
+    const resultado = await leerTicketConGemini(file);
+    if(resultado.total){
+      newExpenseAmount.value = Number(resultado.total).toFixed(2);
+      receiptScanStatus.textContent = `Importe detectado: ${Number(resultado.total).toFixed(2)}€ — revísalo antes de guardar.`;
     } else {
       receiptScanStatus.textContent = 'No he podido detectar el importe. Escríbelo a mano.';
     }
-  } catch(err){
-    console.error(err);
-    receiptScanStatus.textContent = 'No se pudo leer el ticket (¿mala luz o foto borrosa?). Escribe el importe a mano.';
+  } catch(errGemini){
+    console.log('Gemini no disponible, usando el lector local como plan B:', errGemini.message);
+    // Plan B: el lector local (Tesseract), por si Gemini falla (sin
+    // conexión, sin cuota...) — así nunca os quedáis sin poder escanear.
+    try{
+      await _cargarTesseractSiHaceFalta();
+      const { data: { text } } = await Tesseract.recognize(file, 'spa');
+      const importe = extraerImporteDeTicket(text);
+      if(importe){
+        newExpenseAmount.value = importe;
+        receiptScanStatus.textContent = `Importe detectado: ${importe}€ — revísalo antes de guardar.`;
+      } else {
+        receiptScanStatus.textContent = 'No he podido detectar el importe. Escríbelo a mano.';
+      }
+    } catch(err){
+      console.error(err);
+      receiptScanStatus.textContent = 'No se pudo leer el ticket (¿mala luz o foto borrosa?). Escribe el importe a mano.';
+    }
   }
 
   scanReceiptBtn.disabled = false;
@@ -4723,18 +4791,36 @@ async function procesarTicketComunitario(file){
   communityScanStatus.textContent = '📷 Leyendo el ticket… puede tardar unos segundos';
 
   try{
-    await _cargarTesseractSiHaceFalta();
-    const { data: { text } } = await Tesseract.recognize(file, 'spa');
-    communityStoreSelect.value = detectarSupermercado(text);
-    productosDetectados = extraerProductosDeTicket(text);
+    // Primero, la lectura precisa con Gemini: nombre y precio de cada
+    // producto, directamente estructurado, sin depender de patrones de texto.
+    const resultado = await leerTicketConGemini(file);
+    communityStoreSelect.value = ['Mercadona','Lidl','Aldi','Family Cash','Carrefour'].includes(resultado.store) ? resultado.store : 'Otro';
+    productosDetectados = (resultado.items || [])
+      .filter((it) => it && it.name && it.price)
+      .map((it) => ({ name: String(it.name).trim(), price: Number(it.price) }));
     renderCommunityItems();
     communityReviewBlock.style.display = '';
     communityScanStatus.textContent = productosDetectados.length > 0
       ? `Detectados ${productosDetectados.length} producto(s) — revísalos antes de guardar.`
       : 'No se detectó ningún producto automáticamente. Añádelos a mano abajo.';
-  } catch(err){
-    console.error(err);
-    communityScanStatus.textContent = 'No se pudo leer el ticket (¿mala luz o foto borrosa?).';
+  } catch(errGemini){
+    console.log('Gemini no disponible, usando el lector local como plan B:', errGemini.message);
+    // Plan B: el lector local (Tesseract + patrones de texto), por si
+    // Gemini falla — menos preciso, pero nunca os quedáis sin poder escanear.
+    try{
+      await _cargarTesseractSiHaceFalta();
+      const { data: { text } } = await Tesseract.recognize(file, 'spa');
+      communityStoreSelect.value = detectarSupermercado(text);
+      productosDetectados = extraerProductosDeTicket(text);
+      renderCommunityItems();
+      communityReviewBlock.style.display = '';
+      communityScanStatus.textContent = productosDetectados.length > 0
+        ? `Detectados ${productosDetectados.length} producto(s) — revísalos antes de guardar.`
+        : 'No se detectó ningún producto automáticamente. Añádelos a mano abajo.';
+    } catch(err){
+      console.error(err);
+      communityScanStatus.textContent = 'No se pudo leer el ticket (¿mala luz o foto borrosa?).';
+    }
   }
 
   scanCommunityReceiptBtn.disabled = false;
