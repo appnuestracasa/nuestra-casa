@@ -1225,14 +1225,14 @@
       <div id="shoppingList"></div>
       <p class="empty-hint" id="emptyHint">La lista está vacía. ¡Añade algo! 😉</p>
 
-      <button class="btn-super" id="calcularGastoBtn" type="button">💰 Calcular gasto estimado de la lista</button>
+      <button class="btn-super" id="calcularGastoBtn" type="button" style="margin-top:18px;">💰 Calcular gasto estimado de la lista</button>
       <div id="gastoEstimadoResultado"></div>
 
       <!-- "Básicos de la Compra": los productos que más soléis añadir,
            calculados automáticamente a partir del historial en Firestore -->
-      <details class="basics-section">
+      <details class="basics-section" id="basicsSection">
         <summary>⭐ Básicos de la Compra</summary>
-        <p class="fridge-sub">Toca cualquiera para añadirlo directamente a la lista.</p>
+        <p class="fridge-sub">Los 8 productos que más soléis añadir a la lista, calculados solos a partir de lo que ya habéis comprado antes (no los eliges tú, se actualizan según vuestro historial). Toca cualquiera para añadirlo directamente.</p>
         <div class="quick-row" id="basicsRow"></div>
       </details>
     </section>
@@ -1658,6 +1658,18 @@
           <span>Reproducir sonido</span>
           <label class="switch">
             <input type="checkbox" id="settingsSoundToggle">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+      </details>
+
+      <details class="settings-card">
+        <summary class="settings-title">⭐ Básicos de la Compra</summary>
+        <p class="settings-sub">Solo afecta a este móvil. Muestra u oculta el apartado desplegable de la Lista que sugiere solo los productos que más soléis comprar (calculado automáticamente, no configurable).</p>
+        <div class="settings-row settings-toggle-row">
+          <span>Mostrar en la Lista</span>
+          <label class="switch">
+            <input type="checkbox" id="settingsBasicsToggle" checked>
             <span class="switch-slider"></span>
           </label>
         </div>
@@ -3337,7 +3349,11 @@ if(!ReconocimientoVoz){
   reconocimiento.addEventListener('error', (e) => {
     console.error('Error de reconocimiento de voz:', e.error);
     if(e.error === 'not-allowed' || e.error === 'permission-denied'){
-      mostrarAlerta('No se ha dado permiso para usar el micrófono. Actívalo en los ajustes del navegador.');
+      const esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const pasos = esIOS
+        ? 'Este móvil no tiene permiso para el micrófono. Para arreglarlo (solo hay que hacerlo una vez):\n\n1. Ajustes del iPhone\n2. Busca "Safari"\n3. Baja hasta "Ajustes para sitios web"\n4. Toca "Micrófono"\n5. Busca esta web y ponla en "Permitir"'
+        : 'Este móvil no tiene permiso para el micrófono. Para arreglarlo (solo hay que hacerlo una vez):\n\n1. Ajustes del móvil\n2. Apps (o Aplicaciones)\n3. Busca "Nuestra Casa"\n4. Permisos\n5. Micrófono → Permitir';
+      mostrarAlerta(pasos);
     }
   });
 
@@ -3669,7 +3685,7 @@ function renderAgenda(){
     const iconoImportante = appt.important ? '⭐ ' : '';
 
     row.innerHTML = `
-      <time>${appt.time}</time>
+      <time>${escapeHtml(appt.time)}</time>
       <span class="title">${iconoImportante}${escapeHtml(appt.title)}${iconoRepeticion}</span>
       <span class="days-left${esHoy ? ' today' : ''}">${diasTexto}</span>
     `;
@@ -3754,7 +3770,7 @@ function renderUpcoming(){
       const row = document.createElement('div');
       row.className = 'upcoming-row';
       const icono = cita.important ? '⭐ ' : '';
-      row.innerHTML = `<span class="upcoming-when">${etiquetaDia}</span><span>${cita.time} · ${icono}${escapeHtml(cita.title)}</span>`;
+      row.innerHTML = `<span class="upcoming-when">${etiquetaDia}</span><span>${escapeHtml(cita.time)} · ${icono}${escapeHtml(cita.title)}</span>`;
       upcomingList.appendChild(row);
     });
   }
@@ -3808,7 +3824,7 @@ function renderWeek(){
         const row = document.createElement('div');
         row.className = 'week-appt-row';
         const icono = cita.important ? '⭐ ' : '';
-        row.innerHTML = `<time>${cita.time}</time><span>${icono}${escapeHtml(cita.title)}</span>`;
+        row.innerHTML = `<time>${escapeHtml(cita.time)}</time><span>${icono}${escapeHtml(cita.title)}</span>`;
         card.appendChild(row);
       });
     }
@@ -4424,7 +4440,11 @@ async function abrirCamaraYCapturar(inputDeRespaldo){
   let stream;
   try{
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1920 } }
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 1920 }, height: { ideal: 1920 },
+        focusMode: 'continuous' // enfoque continuo, para que no salga borroso al acercar el ticket
+      }
     });
   }catch(e){
     console.log('No se pudo abrir la cámara propia, usando la nativa:', e.message);
@@ -4434,6 +4454,13 @@ async function abrirCamaraYCapturar(inputDeRespaldo){
 
   video.srcObject = stream;
   overlay.classList.add('active');
+
+  // En algunos móviles el enfoque continuo hay que pedirlo aparte, después
+  // de tener ya el vídeo abierto (no vale solo con pedirlo al principio).
+  const pistaParaEnfoque = stream.getVideoTracks()[0];
+  if(pistaParaEnfoque.getCapabilities && pistaParaEnfoque.getCapabilities().focusMode){
+    pistaParaEnfoque.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch((e) => console.log('Enfoque continuo no soportado en este móvil:', e.message));
+  }
 
   // Flash/linterna: solo algunos móviles (sobre todo Android) permiten
   // controlarlo desde la web — en iPhone, Safari no lo deja hacer todavía,
@@ -4459,7 +4486,7 @@ async function abrirCamaraYCapturar(inputDeRespaldo){
   return new Promise((resolve) => {
     function limpiar(){
       if(soportaFlash) flashBtn.removeEventListener('click', alternarFlash);
-      if(flashEncendido) pistaVideo.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+      if(flashEncendido) pistaVideo.applyConstraints({ advanced: [{ torch: false }] }).catch((e) => console.log('No se pudo apagar el flash al cerrar la cámara:', e.message));
       stream.getTracks().forEach((t) => t.stop());
       video.srcObject = null;
       overlay.classList.remove('active');
@@ -4652,6 +4679,22 @@ function renderCommunityItems(){
     const span = document.createElement('span');
     span.className = 'phrase-text';
     span.textContent = `${p.name} — ${p.price.toFixed(2)}€`;
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn-add';
+    editBtn.type = 'button';
+    editBtn.textContent = '✏️';
+    editBtn.style.cssText = 'padding:0 10px; height:30px; width:auto; border-radius:10px; font-size:12px;';
+    editBtn.title = 'Corregir este producto';
+    editBtn.addEventListener('click', async () => {
+      const nuevoNombre = await mostrarPrompt('Nombre del producto', p.name);
+      if(nuevoNombre === null) return;
+      const nuevoPrecio = Number(await mostrarPrompt('Precio (€)', p.price.toFixed(2)));
+      if(!nuevoPrecio || nuevoPrecio <= 0) return;
+      productosDetectados[i] = { name: nuevoNombre.trim() || p.name, price: nuevoPrecio };
+      renderCommunityItems();
+    });
+
     const del = document.createElement('button');
     del.className = 'del';
     del.textContent = '✕';
@@ -4659,7 +4702,7 @@ function renderCommunityItems(){
       productosDetectados.splice(i, 1);
       renderCommunityItems();
     });
-    li.append(span, del);
+    li.append(span, editBtn, del);
     communityItemsList.appendChild(li);
   });
 }
@@ -4712,11 +4755,7 @@ addCommunityItemBtn.addEventListener('click', () => {
 // es el "término genérico" que usamos para saber qué variante concreta
 // predomina en este hogar (ej. de "Leche Pascual Semidesnatada 1L" -> "leche").
 function normalizarTermino(texto){
-  return texto
-    .trim()
-    .split(/\s+/)[0]
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // quita acentos
+  return normalizarTexto(texto.trim().split(/\s+/)[0]);
 }
 
 saveCommunityPricesBtn.addEventListener('click', async () => {
@@ -4879,19 +4918,19 @@ calcularGastoBtn.addEventListener('click', async () => {
   // 40-60 peticiones con una lista larga). Ahora: como mucho 2 consultas
   // en total, para todos los productos de golpe.
   const terminos = [...new Set(items.map((item) => normalizarTermino(item.text)).filter(Boolean))];
-  const precioPorTermino = {}; // { "leche": 0.95, ... }
+  const precioPorTermino = {}; // { "leche": {precio: 0.95, tienda: "Mercadona"}, ... }
 
   if(terminos.length > 0){
     // 1) Variantes predominantes de ESTE hogar, para todos los términos de golpe.
     const { data: preferidos } = await supabaseClient
       .from('price_preferences')
-      .select('generic_term, price, times_scanned')
+      .select('generic_term, price, store, times_scanned')
       .eq('hogar_id', hogarId)
       .in('generic_term', terminos)
       .order('times_scanned', { ascending: false });
 
     (preferidos || []).forEach((p) => {
-      if(!(p.generic_term in precioPorTermino)) precioPorTermino[p.generic_term] = Number(p.price);
+      if(!(p.generic_term in precioPorTermino)) precioPorTermino[p.generic_term] = { precio: Number(p.price), tienda: p.store };
     });
 
     // 2) Para los términos que no tengan variante propia, tiramos de la
@@ -4901,7 +4940,7 @@ calcularGastoBtn.addEventListener('click', async () => {
       const condicionOr = terminosSinPreferencia.map((t) => `product_name.ilike.%${t}%`).join(',');
       const { data: comunidad } = await supabaseClient
         .from('community_prices')
-        .select('price, product_name')
+        .select('price, product_name, store')
         .or(condicionOr)
         .limit(500);
 
@@ -4917,10 +4956,13 @@ calcularGastoBtn.addEventListener('click', async () => {
 
         const porProducto = {};
         filasDeEsteTermino.forEach((f) => {
-          (porProducto[f.product_name] ||= []).push(Number(f.price));
+          (porProducto[f.product_name] ||= { precios: [], tiendas: {} }).precios.push(Number(f.price));
+          porProducto[f.product_name].tiendas[f.store] = (porProducto[f.product_name].tiendas[f.store] || 0) + 1;
         });
-        const masFrecuente = Object.values(porProducto).sort((a, b) => b.length - a.length)[0];
-        precioPorTermino[termino] = masFrecuente.reduce((s, v) => s + v, 0) / masFrecuente.length;
+        const entradaMasFrecuente = Object.values(porProducto).sort((a, b) => b.precios.length - a.precios.length)[0];
+        const precioMedio = entradaMasFrecuente.precios.reduce((s, v) => s + v, 0) / entradaMasFrecuente.precios.length;
+        const tiendaMasComun = Object.entries(entradaMasFrecuente.tiendas).sort((a, b) => b[1] - a[1])[0][0];
+        precioPorTermino[termino] = { precio: precioMedio, tienda: tiendaMasComun };
       });
     }
   }
@@ -4930,12 +4972,12 @@ calcularGastoBtn.addEventListener('click', async () => {
 
   for(const item of items){
     const termino = normalizarTermino(item.text);
-    const precioUnidad = termino && (termino in precioPorTermino) ? precioPorTermino[termino] : null;
+    const info = termino && (termino in precioPorTermino) ? precioPorTermino[termino] : null;
     const cantidad = item.quantity || 1;
 
-    if(precioUnidad !== null){
-      total += precioUnidad * cantidad;
-      filas.push({ texto: item.text, cantidad, precio: precioUnidad * cantidad, sinPrecio: false });
+    if(info !== null){
+      total += info.precio * cantidad;
+      filas.push({ texto: item.text, cantidad, precio: info.precio * cantidad, tienda: info.tienda, sinPrecio: false });
     } else {
       filas.push({ texto: item.text, cantidad, precio: 0, sinPrecio: true });
     }
@@ -4954,7 +4996,7 @@ calcularGastoBtn.addEventListener('click', async () => {
     row.className = 'gasto-estimado-item' + (f.sinPrecio ? ' sin-precio' : '');
     row.innerHTML = f.sinPrecio
       ? `<span>${escapeHtml(f.texto)} ${f.cantidad > 1 ? '×' + f.cantidad : ''}</span><span>sin datos</span>`
-      : `<span>${escapeHtml(f.texto)} ${f.cantidad > 1 ? '×' + f.cantidad : ''}</span><span>${f.precio.toFixed(2)}€</span>`;
+      : `<span>${escapeHtml(f.texto)} ${f.cantidad > 1 ? '×' + f.cantidad : ''} <small style="color:var(--slate-400);">(${escapeHtml(f.tienda)})</small></span><span>${f.precio.toFixed(2)}€</span>`;
     box.appendChild(row);
   });
 
@@ -5046,6 +5088,11 @@ function renderBalance(gastos){
   }
 }
 
+// Colores fijos para el gráfico de gastos — a propósito NO usan las
+// variables de tema (var(--blue) etc.): igual que los colores de acento
+// del resto de la app, un gráfico necesita que cada categoría mantenga
+// SIEMPRE el mismo color reconocible, en modo claro y en modo noche, en
+// vez de cambiar de tono con el tema.
 const COLORES_CATEGORIAS_GASTOS = { 'Comida':'#FF9F5A', 'Ocio':'#F472B6', 'Casa':'#4EA1FF', 'Transporte':'#33D9A0', 'Otros':'#9296B8' };
 
 function renderExpenseChart(gastos){
@@ -6416,7 +6463,7 @@ shortcutRegenerateBtn.addEventListener('click', async () => {
 
 // Al abrir Ajustes, si ya tenías un enlace generado antes, lo mostramos
 // directamente sin que tengas que pulsar "Generar" otra vez.
-cargarOCrearTokenDeAtajo(false).catch(() => {}); // en silencio: si falla, simplemente no se enseña nada de entrada
+cargarOCrearTokenDeAtajo(false).catch((e) => console.log('No se pudo cargar el enlace de "Añadir por voz" al arrancar:', e.message)); // si falla, simplemente no se enseña nada de entrada, pero queda registrado
 
 /* =========================================================================
    RULETA DE TAREAS DEL HOGAR
@@ -6681,6 +6728,20 @@ settingsSoundToggle.checked = sonidoActivo;
 settingsSoundToggle.addEventListener('change', () => {
   sonidoActivo = settingsSoundToggle.checked;
   localStorage.setItem(SONIDO_KEY, sonidoActivo ? 'si' : 'no');
+});
+
+// --- Mostrar/ocultar "Básicos de la Compra" (preferencia local de este móvil) ---
+const BASICS_VISIBLE_KEY = 'nuestraCasaBasicosVisible';
+const settingsBasicsToggle = document.getElementById('settingsBasicsToggle');
+const basicsSection = document.getElementById('basicsSection');
+let basicosVisibles = localStorage.getItem(BASICS_VISIBLE_KEY) !== 'no'; // visible por defecto
+settingsBasicsToggle.checked = basicosVisibles;
+basicsSection.style.display = basicosVisibles ? '' : 'none';
+
+settingsBasicsToggle.addEventListener('change', () => {
+  basicosVisibles = settingsBasicsToggle.checked;
+  localStorage.setItem(BASICS_VISIBLE_KEY, basicosVisibles ? 'si' : 'no');
+  basicsSection.style.display = basicosVisibles ? '' : 'none';
 });
 
 /* =========================================================================
@@ -7002,17 +7063,29 @@ fridgeNote.addEventListener('input', () => {
   clearTimeout(fridgeSaveTimeout);
   fridgeStatus.textContent = 'Escribiendo…';
 
-  fridgeSaveTimeout = setTimeout(() => {
-    const text = fridgeNote.value;
-    lastSentText = text; // recordamos que este texto lo enviamos nosotros
-    fridgeDocRef.set({
-      text: text,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
-      fridgeStatus.textContent = 'Guardado ✓';
-      setTimeout(() => { fridgeStatus.textContent = ''; }, 1500);
-    });
-  }, 500);
+  fridgeSaveTimeout = setTimeout(guardarNotaNeveraAhora, 500);
+});
+
+function guardarNotaNeveraAhora(){
+  clearTimeout(fridgeSaveTimeout);
+  const text = fridgeNote.value;
+  lastSentText = text; // recordamos que este texto lo enviamos nosotros
+  fridgeDocRef.set({
+    text: text,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    fridgeStatus.textContent = 'Guardado ✓';
+    setTimeout(() => { fridgeStatus.textContent = ''; }, 1500);
+  });
+}
+
+// Red de seguridad: si cierras la app (o cambias a otra) justo después de
+// escribir, antes de que pasen los 500ms del debounce, guardamos ya mismo
+// en vez de perder esa última letra que quedó pendiente de mandar.
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'hidden' && fridgeSaveTimeout){
+    guardarNotaNeveraAhora();
+  }
 });
 
 
