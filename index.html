@@ -1187,7 +1187,7 @@
   <nav class="tabs">
     <button id="tabListaBtn" class="active">🛒 Lista</button>
     <button id="tabCalBtn">📅 Calendario</button>
-    <button id="tabPlantasBtn">🪴 Plantas</button>
+    <button id="tabPlantasBtn">🏡 Cuidados</button>
     <button id="tabSaludBtn">💊 Salud</button>
     <button id="tabHuchaBtn">💰 Hucha</button>
     <button id="tabGastosBtn">💶 Gastos</button>
@@ -1275,6 +1275,7 @@
 
     <!-- ================= VISTA 3: CUIDADO DE PLANTAS ================= -->
     <section id="viewPlantas" class="view">
+      <p class="settings-sub"><strong>🌿 Riego de plantas</strong>:</p>
       <div class="plant-add">
         <input type="text" id="newPlantInput" placeholder="Ej: Ficus del salón" maxlength="60">
         <div class="plant-freq-input">
@@ -1442,6 +1443,9 @@
 
     <!-- ================= VISTA: RULETA DE TAREAS ================= -->
     <section id="viewTareas" class="view">
+      <label class="settings-sub" for="ruletaTareaSelect"><strong>¿Para qué tarea giras?</strong></label>
+      <select id="ruletaTareaSelect" style="width:100%; border:none; background:var(--card-bg); border-radius:16px; padding:14px 16px; font-size:14.5px; box-shadow:var(--shadow-sm); margin:6px 0 14px;"></select>
+
       <div class="roulette-wrap">
         <svg id="ruletaSvg" viewBox="0 0 300 300" class="roulette-svg"></svg>
         <div class="roulette-pointer">▼</div>
@@ -1676,6 +1680,18 @@
       </details>
 
       <details class="settings-card">
+        <summary class="settings-title">🧲 Notas rápidas (La Nevera)</summary>
+        <p class="settings-sub">Solo afecta a este móvil. Muestra u oculta el "post-it" compartido que aparece siempre debajo de las pestañas.</p>
+        <div class="settings-row settings-toggle-row">
+          <span>Mostrar la Nevera</span>
+          <label class="switch">
+            <input type="checkbox" id="settingsFridgeToggle" checked>
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+      </details>
+
+      <details class="settings-card">
         <summary class="settings-title">👤 Mi nombre</summary>
         <p class="settings-sub">Así apareces en la lista, el riego de plantas, el diario de salud y los mensajes.</p>
         <div class="settings-row">
@@ -1788,7 +1804,7 @@
   <!-- ================= NOTAS RÁPIDAS (LA NEVERA) =================
        Visible siempre, debajo de las pestañas, tanto en Lista como en
        Calendario: es una nota compartida tipo "post-it de la nevera". -->
-  <div class="fridge-section">
+  <div class="fridge-section" id="fridgeSection">
     <div class="fridge-header">
       <h3>🧲 Notas rápidas (La Nevera)</h3>
       <button class="btn-clear-fridge" id="clearFridgeBtn">🗑️ Vaciar</button>
@@ -2359,6 +2375,11 @@ function arrancarAppConHogar(){
   if(!appYaArrancada){
     appYaArrancada = true;
     iniciarApp();
+    // Deja constancia de que hoy has abierto la app (para poder ver en
+    // Supabase quién la usa a diario) — en silencio, sin afectar a nada
+    // visible de la app.
+    supabaseClient.rpc('marcar_actividad_hoy', { p_hogar_id: hogarId })
+      .then(({ error }) => { if(error) console.log('No se pudo registrar la actividad de hoy:', error.message); });
   }
 }
 
@@ -6256,7 +6277,7 @@ pintarCompartirApp();
    (sin tener que hacer nada más). La primera vez que alguien abre la app
    en un móvil nuevo NO le sale nada (no tiene "antes" con que comparar).
    ========================================================================= */
-const APP_VERSION = '2026-08-01';
+const APP_VERSION = '2026-08-09';
 const CHANGELOG = {
   '2026-07-30': [
     '🔔 Notificaciones como las de WhatsApp: cuando os mandéis un mensaje, un recordatorio de las citas de hoy, y un aviso si falta algo por comprar a la hora que tú elijas (por ejemplo, al salir del trabajo). Actívalo en Ajustes → 🔔 Notificaciones.',
@@ -6291,6 +6312,20 @@ const CHANGELOG = {
     '❤️ Reacciones rápidas (❤️😂👍) a los mensajes que os mandéis.',
     '👋 Tour guiado la primera vez que alguien nuevo entra en la app.',
     '🎲 Ruleta de decisiones genérica ("¿qué cenamos?", "¿peli o serie?") y un generador de planes sorpresa, en Tareas.'
+  ],
+  '2026-08-09': [
+    '🤖 El escaneo de tickets ahora usa inteligencia artificial (mucho más preciso que antes, tanto para el importe como para los productos individuales).',
+    '🧾 Base de precios entre hogares: escanea tickets producto a producto y compara precios de lo que compráis entre supermercados.',
+    '📷 Cámara propia dentro de la app al escanear, con una guía visual para encajar el ticket y botón de flash.',
+    '🎙️ Micrófono en la Lista para dictar varios productos seguidos (haz una pequeña pausa entre cada uno).',
+    '✏️ Ahora se puede editar un producto de la lista o una cita del calendario, sin tener que borrar y crear de nuevo.',
+    '🔍 Buscador general (icono de la cabecera): busca a la vez en lista, calendario, salud y gastos.',
+    '💰 El cálculo de gasto estimado de la lista ahora indica de qué supermercado sale cada precio, y se puede navegar mes a mes.',
+    '🎡 La ruleta de tareas ahora reparte SOLO la tarea que elijas cada vez, no todas de golpe.',
+    '🏡 La pestaña "Plantas" pasa a llamarse "Cuidados" (riego de plantas + mantenimiento del hogar, juntos).',
+    '🔔 Si al abrir la app no tienes las notificaciones activadas, ahora te lo recuerda con un aviso.',
+    '⭐ Nuevas opciones en Ajustes para ocultar "Básicos de la Compra" y "La Nevera" si no los usáis.',
+    '🗑️ Opción de eliminar tu cuenta y tus datos personales, en Ajustes.'
   ]
 };
 
@@ -6612,6 +6647,10 @@ girarRuletaBtn.addEventListener('click', () => {
   if(personasActuales.length === 0){ mostrarAlerta('Añade al menos una persona para girar la ruleta.'); return; }
   if(choresActuales.length === 0){ mostrarAlerta('Añade al menos una tarea para repartir.'); return; }
 
+  const ruletaTareaSelect = document.getElementById('ruletaTareaSelect');
+  const tareaElegida = choresActuales.find((c) => c.id === ruletaTareaSelect.value);
+  if(!tareaElegida){ mostrarAlerta('Elige primero una tarea de la lista de arriba.'); return; }
+
   const n = personasActuales.length;
   const anglePer = 360 / n;
   const indiceGanador = Math.floor(Math.random() * n);
@@ -6627,20 +6666,13 @@ girarRuletaBtn.addEventListener('click', () => {
     ruletaSvg.style.transform = `rotate(${5 * 360 + objetivoDentroDeVuelta}deg)`;
   });
 
-  // Reparto justo de verdad: barajamos las personas y las asignamos en
-  // orden a cada tarea (si hay más tareas que personas, se repite el ciclo).
-  const barajadas = [...personasActuales].sort(() => Math.random() - 0.5);
-  const asignaciones = choresActuales.map((chore, i) => ({ chore, persona: barajadas[i % barajadas.length] }));
-
   girarRuletaBtn.disabled = true;
   ruletaResultado.textContent = 'Girando…';
 
   setTimeout(async () => {
-    for(const a of asignaciones){
-      await choresRef.doc(a.chore.id).update({ assignedTo: a.persona });
-    }
-    ruletaResultado.innerHTML = `🎉 <strong>${escapeHtml(personasActuales[indiceGanador])}</strong> ha salido en la ruleta<br>` +
-      asignaciones.map((a) => `${escapeHtml(a.chore.name)} → ${escapeHtml(a.persona)}`).join('<br>');
+    const personaGanadora = personasActuales[indiceGanador];
+    await choresRef.doc(tareaElegida.id).update({ assignedTo: personaGanadora });
+    ruletaResultado.innerHTML = `🎉 <strong>${escapeHtml(personaGanadora)}</strong> se encarga de "${escapeHtml(tareaElegida.name)}"`;
     girarRuletaBtn.disabled = false;
   }, 4100); // un poco más que la duración de la animación (4s) del CSS
 });
@@ -6672,6 +6704,21 @@ choresRef.orderBy('order', 'asc').onSnapshot((snapshot) => {
     li.append(span, del);
     choresListEl.appendChild(li);
   });
+
+  // Mantenemos el desplegable de "para qué tarea giras" al día, intentando
+  // no perder lo que ya tenías seleccionado si esa tarea sigue existiendo.
+  const ruletaTareaSelect = document.getElementById('ruletaTareaSelect');
+  const seleccionPrevia = ruletaTareaSelect.value;
+  ruletaTareaSelect.innerHTML = '';
+  choresActuales.forEach((chore) => {
+    const option = document.createElement('option');
+    option.value = chore.id;
+    option.textContent = chore.name;
+    ruletaTareaSelect.appendChild(option);
+  });
+  if(choresActuales.some((c) => c.id === seleccionPrevia)){
+    ruletaTareaSelect.value = seleccionPrevia;
+  }
 });
 
 addChoreBtn.addEventListener('click', () => {
@@ -6828,6 +6875,20 @@ settingsBasicsToggle.addEventListener('change', () => {
   basicosVisibles = settingsBasicsToggle.checked;
   localStorage.setItem(BASICS_VISIBLE_KEY, basicosVisibles ? 'si' : 'no');
   basicsSection.style.display = basicosVisibles ? '' : 'none';
+});
+
+// --- Mostrar/ocultar "La Nevera" (preferencia local de este móvil) ---
+const FRIDGE_VISIBLE_KEY = 'nuestraCasaNeveraVisible';
+const settingsFridgeToggle = document.getElementById('settingsFridgeToggle');
+const fridgeSection = document.getElementById('fridgeSection');
+let neveraVisible = localStorage.getItem(FRIDGE_VISIBLE_KEY) !== 'no'; // visible por defecto
+settingsFridgeToggle.checked = neveraVisible;
+fridgeSection.style.display = neveraVisible ? '' : 'none';
+
+settingsFridgeToggle.addEventListener('change', () => {
+  neveraVisible = settingsFridgeToggle.checked;
+  localStorage.setItem(FRIDGE_VISIBLE_KEY, neveraVisible ? 'si' : 'no');
+  fridgeSection.style.display = neveraVisible ? '' : 'none';
 });
 
 /* =========================================================================
