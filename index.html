@@ -5123,18 +5123,34 @@ const emptyExpensesHint   = document.getElementById('emptyExpensesHint');
 newExpensePaidBy.value = miNombre;
 
 function calcularBalances(gastos){
-  const totalesPorPersona = {};
+  // Agrupamos por el USUARIO REAL (paidByUserId) en vez de por el texto
+  // del nombre — así, si alguien cambia su nombre o lo escribe distinto
+  // alguna vez, el balance no se rompe ni cuenta a esa persona dos veces.
+  // Los gastos antiguos (de antes de este cambio) no tienen paidByUserId
+  // guardado, así que para esos usamos el texto como antes, de respaldo.
+  const totalesPorClave = {};
+  const nombreMasRecientePorClave = {};
   let totalGeneral = 0;
+
   gastos.forEach((g) => {
-    totalesPorPersona[g.paidBy] = (totalesPorPersona[g.paidBy] || 0) + Number(g.amount);
+    const clave = g.paidByUserId || g.paidBy;
+    totalesPorClave[clave] = (totalesPorClave[clave] || 0) + Number(g.amount);
     totalGeneral += Number(g.amount);
+
+    // Nos quedamos con el nombre más reciente usado por esa persona, para
+    // que se muestre bonito aunque haya usado varios nombres con el tiempo.
+    const fecha = g.createdAt ? new Date(g.createdAt).getTime() : 0;
+    if(!nombreMasRecientePorClave[clave] || fecha >= nombreMasRecientePorClave[clave].fecha){
+      nombreMasRecientePorClave[clave] = { nombre: g.paidBy, fecha };
+    }
   });
-  const personas = Object.keys(totalesPorPersona);
-  if(personas.length === 0) return [];
-  const partePorPersona = totalGeneral / personas.length;
-  return personas.map((nombre) => ({
-    nombre,
-    balance: Math.round((totalesPorPersona[nombre] - partePorPersona) * 100) / 100
+
+  const claves = Object.keys(totalesPorClave);
+  if(claves.length === 0) return [];
+  const partePorPersona = totalGeneral / claves.length;
+  return claves.map((clave) => ({
+    nombre: nombreMasRecientePorClave[clave].nombre,
+    balance: Math.round((totalesPorClave[clave] - partePorPersona) * 100) / 100
   }));
 }
 
@@ -5366,17 +5382,20 @@ expensesRef.orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
   renderGastosDelMes(); // la lista, el gráfico y ahora también el balance respetan el mes seleccionado
 });
 
-addExpenseBtn.addEventListener('click', () => {
+addExpenseBtn.addEventListener('click', async () => {
   const description = newExpenseDesc.value.trim();
   const amount = Number(newExpenseAmount.value);
   const paidBy = newExpensePaidBy.value.trim() || miNombre;
   const category = newExpenseCategory.value;
   if(!description || !amount || amount <= 0) return;
 
+  const paidByUserId = await obtenerMiUserId();
+
   expensesRef.add({
     description,
     amount,
     paidBy,
+    paidByUserId,
     category,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
